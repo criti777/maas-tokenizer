@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maas-tokenizer"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.116.1",
+  "jinja2==3.1.6",
+  "pydantic==2.12.5",
+  "tiktoken==0.12.0",
+  "tokenizers==0.22.2",
+  "transformers==5.13.1",
+  "uvicorn==0.35.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "httpx==0.28.1",
+  "pytest==8.4.2",
+  "pytest-cov==6.2.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["maas_tokenizer*", "vendor*"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+testpaths = ["tests"]
+
