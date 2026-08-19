@@ -23,11 +23,23 @@ test = [
   "pytest-cov==6.2.1",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src", "."]
-include = ["maas_tokenizer*", "vendor*"]
+[tool.setuptools]
+packages = [
+  "maas_tokenizer",
+  "vendor",
+  "vendor.vllm",
+  "vendor.vllm.extracted",
+]
+
+[tool.setuptools.package-dir]
+maas_tokenizer = "src/maas_tokenizer"
+vendor = "vendor"
+"vendor.vllm" = "vendor/vllm"
+"vendor.vllm.extracted" = "vendor/vllm/extracted"
 
 [tool.pytest.ini_options]
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 
+[tool.coverage.report]
+fail_under = 85
