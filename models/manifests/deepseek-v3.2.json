@@ -1,0 +1,24 @@
+{
+  "files": {
+    "config.json": {
+      "sha256": "c7fa8b191e9936d8e6a57d864baab82b792fae16a116416cdd3a75ba76bc5af1",
+      "size": 1552
+    },
+    "generation_config.json": {
+      "sha256": "c9ce7f8d4a66c6cedd053650db3596328f241f00a7e49e67b89e5c9e336e7205",
+      "size": 171
+    },
+    "tokenizer.json": {
+      "sha256": "cd050be35cae877f8f0aa847f45aa87e23835a56ca32b29b28545597852784e5",
+      "size": 7847502
+    },
+    "tokenizer_config.json": {
+      "sha256": "b5de6cc1c6758d02c0d3cec0efa062f1161654475458003f6f293f6ef28acdaa",
+      "size": 795
+    }
+  },
+  "profile_id": "deepseek-v3.2",
+  "repository": "deepseek-ai/DeepSeek-V3.2",
+  "revision": "a7e62ac04ecb2c0a54d736dc46601c5606cf10a6",
+  "schema_version": 1
+}

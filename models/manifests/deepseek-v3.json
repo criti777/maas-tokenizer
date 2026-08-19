@@ -1,0 +1,20 @@
+{
+  "files": {
+    "config.json": {
+      "sha256": "cbf0b95dc614de208a109bb5fd4e7eed11385e9c68411d2c17db5319443035d9",
+      "size": 1660
+    },
+    "tokenizer.json": {
+      "sha256": "621ac2e32d0dba658404412318818aaa8ce8cda492e59830109d8da6b517fb41",
+      "size": 7847652
+    },
+    "tokenizer_config.json": {
+      "sha256": "637bcd1a08cf7c772ce6a383196b22930921c79c3c73223c5afc0c7f41545546",
+      "size": 3128
+    }
+  },
+  "profile_id": "deepseek-v3",
+  "repository": "deepseek-ai/DeepSeek-V3",
+  "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+  "schema_version": 1
+}

@@ -1,0 +1,40 @@
+{
+  "files": {
+    "chat_template.jinja": {
+      "sha256": "8bf859698fd4781c0e1e1c63ce74422aab27e53ccc5f47116317c64cda06132f",
+      "size": 4022
+    },
+    "config.json": {
+      "sha256": "85825ca6e18cbe539eb83ee09eedfb3f4222265929f06e9f535a6d9364f55899",
+      "size": 5416
+    },
+    "generation_config.json": {
+      "sha256": "5431db52f431099f309ece737670e977de148f8cfd5340e920ff1f44d7cff596",
+      "size": 52
+    },
+    "preprocessor_config.json": {
+      "sha256": "0c43520fbcc076dacbffcf0273f0dfa0ee318ff9aa55537cf7f2788d906de7b2",
+      "size": 742
+    },
+    "tiktoken.model": {
+      "sha256": "b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103",
+      "size": 2795286
+    },
+    "tokenization_kimi.py": {
+      "sha256": "2ab1ffb6f5c4380758bd8d9752ff1041c09024182676a4311528fbdf92fb9599",
+      "size": 13462
+    },
+    "tokenizer_config.json": {
+      "sha256": "12fcab43d2b6068f46769f5ff373960bf7c17a94d7abbc50e2491306b2f6cf58",
+      "size": 4862
+    },
+    "tool_declaration_ts.py": {
+      "sha256": "97e09ed262f1cd38f87584eaa46c5d4d5b3c9725dd299b21642f389040794ebc",
+      "size": 16517
+    }
+  },
+  "profile_id": "kimi-k2.6",
+  "repository": "moonshotai/Kimi-K2.6",
+  "revision": "7eb5002f6aadc958aed6a9177b7ed26bb94011bb",
+  "schema_version": 1
+}

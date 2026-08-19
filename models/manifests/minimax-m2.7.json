@@ -1,0 +1,36 @@
+{
+  "files": {
+    "chat_template.jinja": {
+      "sha256": "893d908f7b5cc65fdde270dcae5ea1a99647c6a7ce572ae874a57b7160069566",
+      "size": 6524
+    },
+    "config.json": {
+      "sha256": "697c30492781d55ac516011f937b5cdec045710b5b0c9ca39a6ea277785df9aa",
+      "size": 1675
+    },
+    "generation_config.json": {
+      "sha256": "2c24fe5507e260bb081727e2a14693d9a982942e721b28720c184d201bffb9dd",
+      "size": 166
+    },
+    "merges.txt": {
+      "sha256": "ca47ea60cf5bd48832586adc264f439d0ea4254176b24a95f85eaa9750e2b5f9",
+      "size": 2414077
+    },
+    "tokenizer.json": {
+      "sha256": "757622126525aeeb131756849d93298070ff3f0319c455ec8c5bb0f6b1cebbe8",
+      "size": 9730160
+    },
+    "tokenizer_config.json": {
+      "sha256": "60e392fea8d47660584deb3c6a716aab7b9f11fed24bc494baf5eb7ba809e882",
+      "size": 10893
+    },
+    "vocab.json": {
+      "sha256": "b44c066b5dc34c800c4e3ecbd85f3e95ce3bfdbf8a5fe30223e005175103578a",
+      "size": 4705413
+    }
+  },
+  "profile_id": "minimax-m2.7",
+  "repository": "MiniMaxAI/MiniMax-M2.7",
+  "revision": "d494266a4affc0d2995ba1fa35c8481cbd84294b",
+  "schema_version": 1
+}

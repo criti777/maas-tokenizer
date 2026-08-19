@@ -1,0 +1,66 @@
+[
+  {
+    "profile_id": "deepseek-v3",
+    "aliases": [],
+    "repository": "deepseek-ai/DeepSeek-V3",
+    "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+    "renderer": "hf",
+    "asset_manifest": "models/manifests/deepseek-v3.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "deepseek-v3.2",
+    "aliases": [],
+    "repository": "deepseek-ai/DeepSeek-V3.2",
+    "revision": "a7e62ac04ecb2c0a54d736dc46601c5606cf10a6",
+    "renderer": "deepseek_v32",
+    "asset_manifest": "models/manifests/deepseek-v3.2.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "deepseek-v4",
+    "aliases": [],
+    "repository": "deepseek-ai/DeepSeek-V4-Flash",
+    "revision": "60d8d70770c6776ff598c94bb586a859a38244f1",
+    "renderer": "deepseek_v4",
+    "asset_manifest": "models/manifests/deepseek-v4.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "kimi-k2.6",
+    "aliases": [],
+    "repository": "moonshotai/Kimi-K2.6",
+    "revision": "7eb5002f6aadc958aed6a9177b7ed26bb94011bb",
+    "renderer": "hf",
+    "trust_remote_code": true,
+    "asset_manifest": "models/manifests/kimi-k2.6.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": true}
+  },
+  {
+    "profile_id": "glm-5.1",
+    "aliases": [],
+    "repository": "zai-org/GLM-5.1",
+    "revision": "26e1bd6e011feb778d25ae34b09b07074139d92d",
+    "renderer": "hf",
+    "asset_manifest": "models/manifests/glm-5.1.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "glm-5.2",
+    "aliases": [],
+    "repository": "zai-org/GLM-5.2",
+    "revision": "b4734de4facf877f85769a911abafc5283eab3d9",
+    "renderer": "hf",
+    "asset_manifest": "models/manifests/glm-5.2.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "minimax-m2.7",
+    "aliases": [],
+    "repository": "MiniMaxAI/MiniMax-M2.7",
+    "revision": "d494266a4affc0d2995ba1fa35c8481cbd84294b",
+    "renderer": "hf",
+    "asset_manifest": "models/manifests/minimax-m2.7.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  }
+]
