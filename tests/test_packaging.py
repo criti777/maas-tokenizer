@@ -2,9 +2,22 @@ from pathlib import Path
 import os
 import subprocess
 import sys
+import tomllib
 
 
 ROOT = Path(__file__).parents[1]
+
+
+def test_production_requirements_match_project_dependencies() -> None:
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    expected = project["project"]["dependencies"]
+    requirements = [
+        line.strip()
+        for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+    assert requirements == expected
 
 
 def test_repository_excludes_dataset_and_oracle_only_modules() -> None:
