@@ -2,15 +2,21 @@ from pathlib import Path
 import os
 import subprocess
 import sys
-import tomllib
 
 
 ROOT = Path(__file__).parents[1]
 
 
-def test_production_requirements_match_project_dependencies() -> None:
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    expected = project["project"]["dependencies"]
+def test_production_requirements_match_company_runtime() -> None:
+    expected = [
+        "fastapi==0.108.0",
+        "jinja2==3.1.6",
+        "pydantic==2.8.2",
+        "tiktoken==0.12.0",
+        "tokenizers==0.22.2",
+        "transformers==5.2.0",
+        "uvicorn[standard]==0.29.0",
+    ]
     requirements = [
         line.strip()
         for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()

@@ -1,8 +1,8 @@
-# Production runtime dependencies. Keep in sync with pyproject.toml.
-fastapi==0.116.1
+# Production runtime dependencies aligned with the company runtime.
+fastapi==0.108.0
 jinja2==3.1.6
-pydantic==2.12.5
+pydantic==2.8.2
 tiktoken==0.12.0
 tokenizers==0.22.2
-transformers==5.13.1
-uvicorn==0.35.0
+transformers==5.2.0
+uvicorn[standard]==0.29.0
