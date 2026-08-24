@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 import logging
 from pathlib import Path
 
+import pytest
+
 from maas_tokenizer.access_logging import (
     AccessLogConfig,
     AccessRecord,
@@ -74,6 +76,18 @@ def test_access_log_rotates(tmp_path: Path) -> None:
 
     assert log_path.exists()
     assert (tmp_path / "access.log.1").exists()
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [("TOKENIZER_LOG_MAX_BYTES", "0"), ("TOKENIZER_LOG_BACKUP_COUNT", "0")],
+)
+def test_access_log_config_rejects_non_positive_values(
+    monkeypatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValueError):
+        AccessLogConfig.from_env()
 
 
 def teardown_module() -> None:

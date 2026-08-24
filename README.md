@@ -21,12 +21,34 @@
 ```bash
 python3.11 -m venv .venv
 .venv/bin/pip install -e .
-.venv/bin/uvicorn maas_tokenizer.api:app --host 0.0.0.0 --port 8080
+.venv/bin/uvicorn maas_tokenizer.api:app --host 0.0.0.0 --port 8080 --workers 1
 ```
 
 服务启动时只读取模型注册表。某个模型第一次收到请求时才校验并加载其 tokenizer/template，之后在进程内缓存；不同模型分别加载和缓存。
 
-生产多 worker 部署时，每个 worker 都有自己的缓存，因此每个 worker 会各自加载一份用到的 tokenizer。
+生产部署必须保持 `--workers 1`。每个 Pod 内只有一个计算线程串行执行 tokenizer 请求；多 worker 会各自创建队列和缓存，无法保证 Pod 级串行。
+
+## Pod 内排队与限流
+
+`/tokenizer` 使用有界 FIFO 队列。默认最多有 1 个请求执行、100 个请求等待：队列已满时立即返回 `429 queue_full`；请求排队 2 秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。
+
+配置项：
+
+```text
+TOKENIZER_QUEUE_SIZE=100
+TOKENIZER_QUEUE_TIMEOUT_SECONDS=2
+TOKENIZER_LOG_PATH=/opt/cloud/logs/access.log
+TOKENIZER_LOG_MAX_BYTES=104857600
+TOKENIZER_LOG_BACKUP_COUNT=5
+```
+
+`GET /health` 不进入计算队列，可直接用于 Kubernetes 存活探针。
+
+## 访问日志
+
+每个 `/tokenizer` 请求输出一条单行日志，同时写入 stdout 和 `TOKENIZER_LOG_PATH`。日志包含 `X-Span-Id`（缺失时自动生成）、model、成功/失败/拒绝状态、HTTP 状态、排队耗时、计算耗时和总耗时，不记录 messages 或请求正文。
+
+默认日志文件达到 100 MB 后轮转并保留 5 份。容器运行用户必须能够创建和写入 `/opt/cloud/logs`；在 CCE 中应把日志卷挂载到该目录并赋予 UID/GID 1000 写权限。
 
 ## API
 
@@ -72,6 +94,7 @@ curl http://127.0.0.1:8080/tokenizer \
 - `404`：模型未登记；
 - `422`：请求体不是合法 JSON/对象；
 - `501`：该多模态请求需要实际 processor；
+- `429`：Pod 等待队列已满或排队超过 2 秒；
 - `500`：本地模型资产完整性异常或内部错误。
 
 ## 代码链路
@@ -83,11 +106,13 @@ src/maas_tokenizer/api.py
   -> assets.py + models/manifests/ + model_assets/
   -> renderers.py
        -> vendor/vllm/extracted/（vLLM 规范化/专用 renderer）
-       -> Transformers / tiktoken（encode）
+       -> AutoTokenizer（模板渲染）+ Gigatoken（encode）
   -> len(token_ids)
 ```
 
 - `api.py`：HTTP 入口与错误状态映射；
+- `scheduler.py`：有界 FIFO、排队超时与单线程串行执行；
+- `access_logging.py`：stdout 和轮转文件访问日志；
 - `service.py`：统一处理流程、模型级懒加载和线程安全缓存；
 - `registry.py`：严格解析七个固定模型，不做未知模型回退；
 - `assets.py`：加载前检查所需本地资产；

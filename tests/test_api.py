@@ -144,3 +144,20 @@ def test_health_is_available_without_entering_scheduler(client) -> None:
     response = client[0].get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("TOKENIZER_QUEUE_SIZE", "0"),
+        ("TOKENIZER_QUEUE_TIMEOUT_SECONDS", "0"),
+    ],
+)
+def test_startup_rejects_non_positive_queue_configuration(
+    tmp_path, monkeypatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValueError):
+        with TestClient(app):
+            pass

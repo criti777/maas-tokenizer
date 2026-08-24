@@ -9,12 +9,20 @@ from dataclasses import dataclass, field
 from time import perf_counter
 
 
+_STOP = object()
+
+
 class QueueFullError(RuntimeError):
     """Raised when no waiting slot is available."""
 
 
 class QueueTimeoutError(RuntimeError):
     """Raised when a job does not start before its queue deadline."""
+
+    def __init__(self, message: str, *, queue_wait_ms: float = 0.0) -> None:
+        super().__init__(message)
+        self.queue_wait_ms = queue_wait_ms
+        self.process_ms = 0.0
 
 
 @dataclass(frozen=True)
@@ -42,7 +50,7 @@ class SerialScheduler:
         if queue_timeout_seconds <= 0:
             raise ValueError("queue_timeout_seconds must be positive")
         self.queue_timeout_seconds = queue_timeout_seconds
-        self._queue: asyncio.Queue[_Job] = asyncio.Queue(maxsize=queue_size)
+        self._queue: asyncio.Queue[_Job | object] = asyncio.Queue(maxsize=queue_size)
         self._executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="tokenizer-worker"
         )
@@ -74,7 +82,10 @@ class SerialScheduler:
             )
         except TimeoutError as error:
             job.cancelled = True
-            raise QueueTimeoutError("tokenizer queue wait timed out") from error
+            raise QueueTimeoutError(
+                "tokenizer queue wait timed out",
+                queue_wait_ms=(perf_counter() - job.enqueued_at) * 1000,
+            ) from error
         except asyncio.CancelledError:
             job.cancelled = True
             raise
@@ -84,20 +95,18 @@ class SerialScheduler:
         if self._closed:
             return
         self._closed = True
-        if self._consumer is not None:
-            self._consumer.cancel()
-            try:
-                await self._consumer
-            except asyncio.CancelledError:
-                pass
         while not self._queue.empty():
             job = self._queue.get_nowait()
+            assert isinstance(job, _Job)
             job.cancelled = True
             if not job.started.done():
                 job.started.cancel()
             if not job.completed.done():
                 job.completed.cancel()
             self._queue.task_done()
+        if self._consumer is not None:
+            await self._queue.put(_STOP)
+            await self._consumer
         self._executor.shutdown(wait=True, cancel_futures=True)
 
     async def _consume(self) -> None:
@@ -105,6 +114,9 @@ class SerialScheduler:
         while True:
             job = await self._queue.get()
             try:
+                if job is _STOP:
+                    return
+                assert isinstance(job, _Job)
                 if job.cancelled:
                     continue
                 started_at = perf_counter()
@@ -112,6 +124,8 @@ class SerialScheduler:
                 try:
                     value = await loop.run_in_executor(self._executor, job.call)
                 except BaseException as error:
+                    error.queue_wait_ms = (started_at - job.enqueued_at) * 1000
+                    error.process_ms = (perf_counter() - started_at) * 1000
                     if not job.completed.done():
                         job.completed.set_exception(error)
                 else:

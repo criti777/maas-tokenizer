@@ -84,8 +84,6 @@ async def tokenizer_access_log(request: Request, call_next):
     request.state.queue_wait_ms = 0.0
     request.state.process_ms = 0.0
     response = await call_next(request)
-    if response.status_code < 400 and request.state.access_status == "failed":
-        request.state.access_status = "success"
     if response.status_code >= 400 and request.state.access_reason == "-":
         request.state.access_reason = f"http_{response.status_code}"
     log_access(
@@ -121,12 +119,14 @@ async def token_count(
         request.state.access_status = "success"
         return result.value
     except QueueFullError as error:
+        _capture_error_timings(request, error)
         request.state.access_status = "rejected"
         request.state.access_reason = "queue_full"
         raise _http_error(
             429, "admission_control", "queue_full", error, headers={"Retry-After": "1"}
         ) from error
     except QueueTimeoutError as error:
+        _capture_error_timings(request, error)
         request.state.access_status = "rejected"
         request.state.access_reason = "queue_timeout"
         raise _http_error(
@@ -137,9 +137,11 @@ async def token_count(
             headers={"Retry-After": "1"},
         ) from error
     except UnknownModelError as error:
+        _capture_error_timings(request, error)
         request.state.access_reason = "unknown_model"
         raise _http_error(404, "profile_resolution", "unknown_model", error) from error
     except ProcessorRequiredError as error:
+        _capture_error_timings(request, error)
         request.state.access_reason = "multimodal_processor_required"
         raise _http_error(
             501,
@@ -148,16 +150,19 @@ async def token_count(
             error,
         ) from error
     except RequestProcessingError as error:
+        _capture_error_timings(request, error)
         request.state.access_reason = "request_processing_error"
         raise _http_error(
             400, "request_validation", "request_processing_error", error
         ) from error
     except AssetIntegrityError as error:
+        _capture_error_timings(request, error)
         request.state.access_reason = "asset_integrity_error"
         raise _http_error(
             500, "asset_integrity", "asset_integrity_error", error
         ) from error
     except Exception as error:
+        _capture_error_timings(request, error)
         request.state.access_reason = "internal_error"
         raise HTTPException(
             status_code=500,
@@ -172,6 +177,11 @@ async def token_count(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def _capture_error_timings(request: Request, error: Exception) -> None:
+    request.state.queue_wait_ms = getattr(error, "queue_wait_ms", 0.0)
+    request.state.process_ms = getattr(error, "process_ms", 0.0)
 
 
 def _http_error(
