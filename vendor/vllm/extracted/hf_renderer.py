@@ -32,7 +32,7 @@ def _convert_developer(conversation: list[dict[str, Any]]) -> list[dict[str, Any
     return [{"role": "system", "content": "\n\n".join(filter(None, contents))}, *rest]
 
 
-def render_and_encode(
+def render_chat(
     *,
     tokenizer: Any,
     messages: list[dict[str, Any]],
@@ -40,8 +40,7 @@ def render_and_encode(
     chat_template: str | None,
     content_format: str,
     template_kwargs: dict[str, Any],
-    add_special_tokens: bool,
-) -> tuple[list[dict[str, Any]], str, list[int], str]:
+) -> tuple[list[dict[str, Any]], str, str]:
     resolved_template = tokenizer.get_chat_template(chat_template, tools=tools)
     resolved_format = (
         detect_content_format(resolved_template)
@@ -60,6 +59,4 @@ def render_and_encode(
         tokenize=False,
         **{key: value for key, value in template_kwargs.items() if key != "tools"},
     )
-    token_ids = tokenizer.encode(rendered, add_special_tokens=add_special_tokens)
-    return conversation, rendered, list(token_ids), resolved_format
-
+    return conversation, rendered, resolved_format

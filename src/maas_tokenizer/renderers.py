@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Lock
@@ -12,21 +13,37 @@ from transformers import AutoTokenizer
 from vendor.vllm.extracted.chat_utils import parse_chat_messages
 from vendor.vllm.extracted.deepseek_v32_encoding import encode_messages as encode_v32
 from vendor.vllm.extracted.deepseek_v4_encoding import encode_messages as encode_v4
-from vendor.vllm.extracted.hf_renderer import render_and_encode
+from vendor.vllm.extracted.hf_renderer import render_chat
 
+from .encoders import GigaTokenEncoder, TokenEncoder
 from .registry import ModelProfile
 
 
 _REMOTE_CODE_LOCK = Lock()
 
 
+@dataclass(frozen=True)
+class RenderedPrompt:
+    text: str
+    add_special_tokens: bool
+
+
 class Renderer(Protocol):
-    def render(self, parsed: Any) -> list[int]: ...
+    template_tokenizer: Any
+    encoder: TokenEncoder
+
+    def render(self, parsed: Any) -> RenderedPrompt: ...
 
 
 class HFRenderer:
-    def __init__(self, tokenizer: Any, content_format: str | None = None) -> None:
-        self.tokenizer = tokenizer
+    def __init__(
+        self,
+        template_tokenizer: Any,
+        encoder: TokenEncoder,
+        content_format: str | None = None,
+    ) -> None:
+        self.template_tokenizer = template_tokenizer
+        self.encoder = encoder
         self.content_format = content_format
 
     @classmethod
@@ -49,26 +66,30 @@ class HFRenderer:
                 path, local_files_only=True, trust_remote_code=False
             )
         content_format = "openai" if profile.capabilities.get("content_parts") else None
-        return cls(tokenizer, content_format)
+        return cls(
+            tokenizer,
+            GigaTokenEncoder.from_assets(path),
+            content_format,
+        )
 
-    def render(self, parsed: Any) -> list[int]:
-        _, _, token_ids, _ = render_and_encode(
-            tokenizer=self.tokenizer,
+    def render(self, parsed: Any) -> RenderedPrompt:
+        _, rendered, _ = render_chat(
+            tokenizer=self.template_tokenizer,
             messages=parsed.messages,
             tools=parsed.tools,
             chat_template=parsed.chat_template,
             content_format=self.content_format or parsed.chat_template_content_format,
             template_kwargs=parsed.template_kwargs(parsed.tools),
-            add_special_tokens=parsed.add_special_tokens,
         )
-        return token_ids
+        return RenderedPrompt(rendered, parsed.add_special_tokens)
 
 
 class DeepSeekV32Renderer:
-    def __init__(self, tokenizer: Any) -> None:
-        self.tokenizer = tokenizer
+    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
+        self.template_tokenizer = template_tokenizer
+        self.encoder = encoder
 
-    def render(self, parsed: Any) -> list[int]:
+    def render(self, parsed: Any) -> RenderedPrompt:
         conversation = parse_chat_messages(parsed.messages, "string")
         if parsed.tools:
             conversation.insert(0, {"role": "system", "content": "", "tools": parsed.tools})
@@ -79,14 +100,15 @@ class DeepSeekV32Renderer:
             thinking_mode="thinking" if thinking else "chat",
             drop_thinking=bool(conversation and conversation[-1]["role"] == "user"),
         )
-        return list(self.tokenizer.encode(text, add_special_tokens=False))
+        return RenderedPrompt(text, False)
 
 
 class DeepSeekV4Renderer:
-    def __init__(self, tokenizer: Any) -> None:
-        self.tokenizer = tokenizer
+    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
+        self.template_tokenizer = template_tokenizer
+        self.encoder = encoder
 
-    def render(self, parsed: Any) -> list[int]:
+    def render(self, parsed: Any) -> RenderedPrompt:
         conversation = parse_chat_messages(parsed.messages, "string")
         if parsed.tools:
             conversation.insert(0, {"role": "system", "content": "", "tools": parsed.tools})
@@ -105,16 +127,16 @@ class DeepSeekV4Renderer:
             drop_thinking=bool(kwargs.get("drop_thinking", True)),
             reasoning_effort=effort,
         )
-        return list(self.tokenizer.encode(text, add_special_tokens=False))
+        return RenderedPrompt(text, False)
 
 
 def build_renderer(profile: ModelProfile, asset_path: Path) -> Renderer:
     if profile.renderer == "hf":
         return HFRenderer.from_assets(asset_path, profile)
     tokenizer = AutoTokenizer.from_pretrained(asset_path, local_files_only=True)
+    encoder = GigaTokenEncoder.from_assets(asset_path)
     if profile.renderer == "deepseek_v32":
-        return DeepSeekV32Renderer(tokenizer)
+        return DeepSeekV32Renderer(tokenizer, encoder)
     if profile.renderer == "deepseek_v4":
-        return DeepSeekV4Renderer(tokenizer)
+        return DeepSeekV4Renderer(tokenizer, encoder)
     raise ValueError(f"unknown renderer: {profile.renderer}")
-

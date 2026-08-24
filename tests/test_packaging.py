@@ -10,6 +10,7 @@ ROOT = Path(__file__).parents[1]
 def test_production_requirements_match_company_runtime() -> None:
     expected = [
         "fastapi==0.108.0",
+        "gigatoken==0.10.0",
         "jinja2==3.1.6",
         "pydantic==2.8.2",
         "tiktoken==0.12.0",

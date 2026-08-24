@@ -100,7 +100,12 @@ class TokenCountService:
                 f"{profile.profile_id} requires a multimodal processor"
             )
         try:
-            token_ids = self._renderer_for(profile).render(parsed)
+            renderer = self._renderer_for(profile)
+            rendered = renderer.render(parsed)
+            token_ids = renderer.encoder.encode(
+                rendered.text,
+                add_special_tokens=rendered.add_special_tokens,
+            )
         except UnsupportedMultimodalError as error:
             raise ProcessorRequiredError(str(error)) from error
         return len(token_ids)

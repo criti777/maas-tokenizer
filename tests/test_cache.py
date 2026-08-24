@@ -7,11 +7,21 @@ import pytest
 
 import maas_tokenizer.service as service_module
 from maas_tokenizer.service import TokenCountService
+from maas_tokenizer.renderers import RenderedPrompt
+
+
+class FixedEncoder:
+    def encode(self, text: str, *, add_special_tokens: bool) -> list[int]:
+        assert text == "rendered"
+        assert add_special_tokens is False
+        return [1, 2, 3]
 
 
 class FixedRenderer:
-    def render(self, parsed: object) -> list[int]:
-        return [1, 2, 3]
+    encoder = FixedEncoder()
+
+    def render(self, parsed: object) -> RenderedPrompt:
+        return RenderedPrompt("rendered", False)
 
 
 def test_concurrent_first_load_builds_renderer_once(monkeypatch: pytest.MonkeyPatch) -> None:
