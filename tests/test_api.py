@@ -17,6 +17,7 @@ from maas_tokenizer.scheduler import ExecutionResult, QueueFullError, QueueTimeo
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setattr("maas_tokenizer.api._service.count", lambda request: 1)
     with TestClient(app) as test_client:
         yield test_client, tmp_path / "access.log"
     app.dependency_overrides.clear()
@@ -144,6 +145,64 @@ def test_health_is_available_without_entering_scheduler(client) -> None:
     response = client[0].get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_startup_warms_glm_5_2_before_serving(tmp_path, monkeypatch) -> None:
+    calls: list[Mapping[str, Any]] = []
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setattr(
+        "maas_tokenizer.api._service.count",
+        lambda request: calls.append(request) or 1,
+    )
+
+    with TestClient(app):
+        assert calls == [
+            {
+                "model": "glm-5.2",
+                "messages": [{"role": "user", "content": "warmup"}],
+            }
+        ]
+
+
+class WarmupFailingScheduler:
+    def __init__(self, **kwargs) -> None:
+        self.started = False
+        self.closed = False
+
+    async def start(self) -> None:
+        self.started = True
+
+    async def submit(self, call):
+        call()
+        raise AssertionError("unreachable")
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def test_warmup_failure_prevents_startup_and_closes_scheduler(
+    tmp_path, monkeypatch
+) -> None:
+    created: list[WarmupFailingScheduler] = []
+
+    def scheduler_factory(**kwargs):
+        scheduler = WarmupFailingScheduler(**kwargs)
+        created.append(scheduler)
+        return scheduler
+
+    def fail(_request):
+        raise RuntimeError("warmup failed")
+
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setattr("maas_tokenizer.api.SerialScheduler", scheduler_factory)
+    monkeypatch.setattr("maas_tokenizer.api._service.count", fail)
+
+    with pytest.raises(RuntimeError, match="warmup failed"):
+        with TestClient(app):
+            pass
+
+    assert created[0].started is True
+    assert created[0].closed is True
 
 
 @pytest.mark.parametrize(

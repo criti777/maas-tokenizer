@@ -24,7 +24,7 @@ python3.11 -m venv .venv
 .venv/bin/uvicorn maas_tokenizer.api:app --host 0.0.0.0 --port 8080 --workers 1
 ```
 
-服务启动时只读取模型注册表。某个模型第一次收到请求时才校验并加载其 tokenizer/template，之后在进程内缓存；不同模型分别加载和缓存。
+服务启动阶段会通过正式计数链路预热 `glm-5.2`，预热成功后才开始接收流量；其他模型第一次收到请求时才校验并加载其 tokenizer/template。所有已加载模型之后都在进程内按 profile 缓存。
 
 生产部署必须保持 `--workers 1`。每个 Pod 内只有一个计算线程串行执行 tokenizer 请求；多 worker 会各自创建队列和缓存，无法保证 Pod 级串行。
 

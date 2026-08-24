@@ -24,6 +24,10 @@ from .scheduler import QueueFullError, QueueTimeoutError, SerialScheduler
 
 
 _service = TokenCountService()
+_WARMUP_REQUEST: dict[str, Any] = {
+    "model": "glm-5.2",
+    "messages": [{"role": "user", "content": "warmup"}],
+}
 
 
 def _positive_int(name: str, default: int) -> int:
@@ -53,6 +57,7 @@ async def lifespan(application: FastAPI):
     application.state.access_logger = logger
     await scheduler.start()
     try:
+        await scheduler.submit(lambda: _service.count(_WARMUP_REQUEST))
         yield
     finally:
         await scheduler.close()
