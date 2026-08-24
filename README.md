@@ -30,12 +30,12 @@ python3.11 -m venv .venv
 
 ## API
 
-### `POST /v1/token-count`
+### `POST /tokenizer`
 
 请求体沿用 OpenAI Chat Completions 风格，至少需要 `model` 和 `messages`：
 
 ```bash
-curl http://127.0.0.1:8080/v1/token-count \
+curl http://127.0.0.1:8080/tokenizer \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "glm-5.2",
@@ -49,7 +49,7 @@ curl http://127.0.0.1:8080/v1/token-count \
 成功响应只有最终数量：
 
 ```json
-{"token_count": 18}
+18
 ```
 
 工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。

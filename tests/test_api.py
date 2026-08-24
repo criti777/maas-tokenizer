@@ -23,7 +23,7 @@ def test_token_count_endpoint_returns_only_count() -> None:
     app.dependency_overrides[get_token_count_service] = lambda: FixedService()
     try:
         response = TestClient(app).post(
-            "/v1/token-count",
+            "/tokenizer",
             json={
                 "model": "glm-5.2",
                 "messages": [{"role": "user", "content": "你好"}],
@@ -33,7 +33,20 @@ def test_token_count_endpoint_returns_only_count() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json() == {"token_count": 18}
+    assert response.json() == 18
+    assert type(response.json()) is int
+
+
+def test_old_token_count_endpoint_is_not_available() -> None:
+    response = TestClient(app).post(
+        "/v1/token-count",
+        json={
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "你好"}],
+        },
+    )
+
+    assert response.status_code == 404
 
 
 class FailingService:
@@ -60,7 +73,7 @@ def test_expected_errors_have_stable_http_mapping(
     app.dependency_overrides[get_token_count_service] = lambda: FailingService(error)
     try:
         response = TestClient(app, raise_server_exceptions=False).post(
-            "/v1/token-count",
+            "/tokenizer",
             json={"model": "glm-5.2", "messages": [{"role": "user", "content": "hi"}]},
         )
     finally:
@@ -75,6 +88,6 @@ def test_expected_errors_have_stable_http_mapping(
 
 def test_malformed_json_uses_fastapi_422() -> None:
     response = TestClient(app).post(
-        "/v1/token-count", content="{", headers={"content-type": "application/json"}
+        "/tokenizer", content="{", headers={"content-type": "application/json"}
     )
     assert response.status_code == 422
