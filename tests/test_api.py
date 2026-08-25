@@ -14,9 +14,15 @@ from maas_tokenizer.errors import (
 from maas_tokenizer.scheduler import ExecutionResult, QueueFullError, QueueTimeoutError
 
 
+@pytest.fixture(autouse=True)
+def runtime_log_path(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("TOKENIZER_RUN_LOG_PATH", str(tmp_path / "run.log"))
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setenv("TOKENIZER_RUN_LOG_PATH", str(tmp_path / "run.log"))
     monkeypatch.setattr("maas_tokenizer.api._service.count", lambda request: 1)
     with TestClient(app) as test_client:
         yield test_client, tmp_path / "access.log"
@@ -158,6 +164,10 @@ def test_expected_errors_have_stable_http_mapping(
     assert fields[5] == ""
     assert fields[6] == error_type
     assert fields[7] == message
+    if error_type == "internal_error":
+        run_log = (client[1].parent / "run.log").read_text(encoding="utf-8")
+        assert "event=request_failed" in run_log
+        assert "RuntimeError: boom" in run_log
 
 
 def test_malformed_json_uses_fastapi_422(client) -> None:

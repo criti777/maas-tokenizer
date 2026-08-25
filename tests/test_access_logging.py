@@ -31,7 +31,7 @@ def _record(span_id: str = "span-1") -> AccessRecord:
     )
 
 
-def test_access_log_is_written_to_stdout_and_file(tmp_path: Path, capsys) -> None:
+def test_access_log_is_written_only_to_file(tmp_path: Path, capsys) -> None:
     log_path = tmp_path / "logs" / "access.log"
     logger = configure_access_logger(
         AccessLogConfig(log_path=log_path, max_bytes=10_000, backup_count=2)
@@ -43,7 +43,7 @@ def test_access_log_is_written_to_stdout_and_file(tmp_path: Path, capsys) -> Non
 
     stdout_line = capsys.readouterr().out.strip()
     file_line = log_path.read_text(encoding="utf-8").strip()
-    assert stdout_line == file_line
+    assert stdout_line == ""
     assert file_line == (
         "2026-08-24 15:20:31.000"
         "|span-1"

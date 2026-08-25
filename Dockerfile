@@ -11,6 +11,10 @@ ENV PROD_ENV=1 \
     TOKENIZER_LOG_BACKUP_COUNT=5 \
     TOKENIZER_LOG_REQUEST_BODY=false \
     TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES=65536 \
+    TOKENIZER_RUN_LOG_PATH=/opt/cloud/logs/maas-tokenizer/run.log \
+    TOKENIZER_RUN_LOG_MAX_BYTES=104857600 \
+    TOKENIZER_RUN_LOG_BACKUP_COUNT=5 \
+    TOKENIZER_RUN_LOG_LEVEL=INFO \
     TOKENIZER_QUEUE_SIZE=100 \
     TOKENIZER_QUEUE_TIMEOUT_SECONDS=2
 
@@ -35,4 +39,4 @@ USER service
 EXPOSE 8080
 
 # 单进程、单 worker
-CMD ["python", "-m", "uvicorn", "maas_tokenizer.api:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+CMD ["python", "-m", "maas_tokenizer.main"]

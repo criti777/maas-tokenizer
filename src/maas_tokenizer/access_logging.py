@@ -9,7 +9,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
-import sys
 from zoneinfo import ZoneInfo
 
 
@@ -121,8 +120,6 @@ def configure_access_logger(config: AccessLogConfig) -> logging.Logger:
         logger.removeHandler(handler)
 
     formatter = logging.Formatter("%(message)s")
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setFormatter(formatter)
     file_handler = RotatingFileHandler(
         config.log_path,
         maxBytes=config.max_bytes,
@@ -130,7 +127,6 @@ def configure_access_logger(config: AccessLogConfig) -> logging.Logger:
         encoding="utf-8",
     )
     file_handler.setFormatter(formatter)
-    logger.addHandler(stdout_handler)
     logger.addHandler(file_handler)
     return logger
 

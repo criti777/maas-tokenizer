@@ -19,11 +19,17 @@ from .access_logging import (
     configure_access_logger,
     log_access,
     prepare_request_body_for_log,
+    sanitize_log_value,
 )
 from .service import TokenCountService
 from .assets import AssetIntegrityError
 from .errors import ProcessorRequiredError, RequestProcessingError, UnknownModelError
 from .scheduler import QueueFullError, QueueTimeoutError, SerialScheduler
+from .run_logging import (
+    RunLogConfig,
+    configure_process_file_logging,
+    configure_run_logger,
+)
 
 
 _service = TokenCountService()
@@ -49,26 +55,43 @@ def _positive_float(name: str, default: float) -> float:
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    scheduler = SerialScheduler(
-        queue_size=_positive_int("TOKENIZER_QUEUE_SIZE", 100),
-        queue_timeout_seconds=_positive_float(
-            "TOKENIZER_QUEUE_TIMEOUT_SECONDS", 2.0
-        ),
-    )
-    access_log_config = AccessLogConfig.from_env()
-    logger = configure_access_logger(access_log_config)
-    application.state.scheduler = scheduler
-    application.state.access_logger = logger
-    application.state.access_log_config = access_log_config
-    await scheduler.start()
+    run_logger = configure_run_logger(RunLogConfig.from_env())
+    configure_process_file_logging(run_logger)
+    run_logger.info("event=service_starting")
     try:
+        scheduler = SerialScheduler(
+            queue_size=_positive_int("TOKENIZER_QUEUE_SIZE", 100),
+            queue_timeout_seconds=_positive_float(
+                "TOKENIZER_QUEUE_TIMEOUT_SECONDS", 2.0
+            ),
+        )
+        access_log_config = AccessLogConfig.from_env()
+        access_logger = configure_access_logger(access_log_config)
+        application.state.scheduler = scheduler
+        application.state.access_logger = access_logger
+        application.state.access_log_config = access_log_config
+        application.state.run_logger = run_logger
+        await scheduler.start()
+        warmup_started = perf_counter()
+        run_logger.info("event=warmup_started|model=glm-5.2")
         await scheduler.submit(lambda: _service.count(_WARMUP_REQUEST))
+        run_logger.info(
+            "event=warmup_succeeded|model=glm-5.2|duration_ms=%.2f",
+            (perf_counter() - warmup_started) * 1000,
+        )
+        run_logger.info("event=service_ready")
         yield
+    except BaseException:
+        run_logger.exception("event=service_lifecycle_failed")
+        raise
     finally:
-        await scheduler.close()
-        for handler in list(logger.handlers):
-            handler.close()
-            logger.removeHandler(handler)
+        run_logger.info("event=service_stopping")
+        if "scheduler" in locals():
+            await scheduler.close()
+        if "access_logger" in locals():
+            for handler in list(access_logger.handlers):
+                handler.close()
+                access_logger.removeHandler(handler)
 
 
 app = FastAPI(title="MaaS Tokenizer", lifespan=lifespan)
@@ -224,6 +247,7 @@ async def token_count(
         raise _api_error(400, "request_processing_error", error) from error
     except AssetIntegrityError as error:
         _capture_error(request, error, "asset_integrity_error")
+        _log_request_exception(request, error, "asset_integrity_error")
         raise _api_error(500, "asset_integrity_error", error) from error
     except Exception as error:
         _capture_error(
@@ -232,6 +256,7 @@ async def token_count(
             "internal_error",
             message="internal server error",
         )
+        _log_request_exception(request, error, "internal_error")
         raise APIError(500, "internal_error", "internal server error") from error
 
 
@@ -265,4 +290,17 @@ def _api_error(
         error_code,
         str(error),
         headers=headers,
+    )
+
+
+def _log_request_exception(
+    request: Request, error: Exception, error_code: str
+) -> None:
+    request.app.state.run_logger.error(
+        "event=request_failed|x_span_id=%s|x_request_id=%s|model=%s|error_code=%s",
+        sanitize_log_value(request.state.span_id),
+        sanitize_log_value(request.state.request_id),
+        sanitize_log_value(request.state.model),
+        error_code,
+        exc_info=(type(error), error, error.__traceback__),
     )

@@ -45,6 +45,40 @@ def test_repository_contains_no_model_weights_or_derived_caches() -> None:
     assert not list((ROOT / "model_assets").rglob(".cache"))
 
 
+def test_container_uses_file_only_runtime_logging_entrypoint() -> None:
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert "TOKENIZER_RUN_LOG_PATH=/opt/cloud/logs/maas-tokenizer/run.log" in dockerfile
+    assert 'CMD ["python", "-m", "maas_tokenizer.main"]' in dockerfile
+
+
+def test_production_entrypoint_emits_nothing_to_terminal(tmp_path: Path) -> None:
+    environment = os.environ.copy()
+    environment["TOKENIZER_RUN_LOG_PATH"] = str(tmp_path / "run.log")
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import importlib; import maas_tokenizer.main as entrypoint; "
+                "entrypoint.uvicorn.run = lambda app, **kwargs: "
+                "importlib.import_module(app.split(':')[0]); "
+                "entrypoint.main()"
+            ),
+        ],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    assert completed.stdout == ""
+    assert completed.stderr == ""
+    assert (tmp_path / "run.log").exists()
+
+
 def test_editable_install_is_importable_outside_repository(tmp_path: Path) -> None:
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)

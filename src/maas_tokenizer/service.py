@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+import logging
 from threading import Lock
+from time import perf_counter
 from typing import Any
 
 from pydantic import ValidationError
@@ -31,6 +33,7 @@ _MEDIA_TYPES = {
     "audio_url",
     "input_audio",
 }
+_RUN_LOGGER = logging.getLogger("maas_tokenizer.run")
 
 
 def _contains_media(messages: object) -> bool:
@@ -78,9 +81,15 @@ class TokenCountService:
         with self._lock_for(profile.profile_id):
             renderer = self._renderers.get(profile.profile_id)
             if renderer is None:
+                started_at = perf_counter()
                 asset_path = verify_asset_directory(profile, self.assets_root)
                 renderer = build_renderer(profile, asset_path)
                 self._renderers[profile.profile_id] = renderer
+                _RUN_LOGGER.info(
+                    "event=model_loaded|profile_id=%s|duration_ms=%.2f",
+                    profile.profile_id,
+                    (perf_counter() - started_at) * 1000,
+                )
             return renderer
 
     def count(self, request: Mapping[str, Any]) -> int:

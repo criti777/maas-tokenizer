@@ -6,10 +6,12 @@ import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+import logging
 from time import perf_counter
 
 
 _STOP = object()
+_RUN_LOGGER = logging.getLogger("maas_tokenizer.run")
 
 
 class QueueFullError(RuntimeError):
@@ -60,6 +62,7 @@ class SerialScheduler:
     async def start(self) -> None:
         if self._consumer is None:
             self._consumer = asyncio.create_task(self._consume())
+            self._consumer.add_done_callback(self._consumer_finished)
 
     async def submit(self, call: Callable[[], int]) -> ExecutionResult:
         if self._closed or self._consumer is None:
@@ -139,3 +142,14 @@ class SerialScheduler:
                         )
             finally:
                 self._queue.task_done()
+
+    @staticmethod
+    def _consumer_finished(task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            _RUN_LOGGER.error(
+                "event=scheduler_consumer_failed",
+                exc_info=(type(error), error, error.__traceback__),
+            )
