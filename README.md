@@ -98,23 +98,20 @@ curl http://127.0.0.1:8080/tokenizer \
   }'
 ```
 
-成功响应只有最终数量：
+成功响应为 JSON 对象：
 
 ```json
-18
+{"token_count": 18}
 ```
 
 工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。
 
-错误响应使用 FastAPI 的 `detail`，并标明失败阶段：
+错误响应统一为仅含错误码和错误消息的 JSON 对象：
 
 ```json
 {
-  "detail": {
-    "stage": "profile_resolution",
-    "type": "unknown_model",
-    "message": "..."
-  }
+  "error_code": "unknown_model",
+  "error_msg": "..."
 }
 ```
 

@@ -29,7 +29,7 @@ class FixedService:
         return 18
 
 
-def test_token_count_endpoint_returns_only_count_and_logs_access(client) -> None:
+def test_token_count_endpoint_returns_object_and_logs_access(client) -> None:
     test_client, log_path = client
     app.dependency_overrides[get_token_count_service] = lambda: FixedService()
     response = test_client.post(
@@ -42,8 +42,7 @@ def test_token_count_endpoint_returns_only_count_and_logs_access(client) -> None
     )
 
     assert response.status_code == 200
-    assert response.json() == 18
-    assert type(response.json()) is int
+    assert response.json() == {"token_count": 18}
     log_line = log_path.read_text(encoding="utf-8").strip()
     fields = log_line.split("|")
     assert len(fields) == 13
@@ -135,17 +134,17 @@ class FailingService:
 
 
 @pytest.mark.parametrize(
-    ("error", "status", "stage", "error_type"),
+    ("error", "status", "error_type"),
     [
-        (UnknownModelError("unknown"), 404, "profile_resolution", "unknown_model"),
-        (RequestProcessingError("bad request"), 400, "request_validation", "request_processing_error"),
-        (ProcessorRequiredError("needs processor"), 501, "processor_required", "multimodal_processor_required"),
-        (AssetIntegrityError("bad assets"), 500, "asset_integrity", "asset_integrity_error"),
-        (RuntimeError("boom"), 500, "internal", "internal_error"),
+        (UnknownModelError("unknown"), 404, "unknown_model"),
+        (RequestProcessingError("bad request"), 400, "request_processing_error"),
+        (ProcessorRequiredError("needs processor"), 501, "multimodal_processor_required"),
+        (AssetIntegrityError("bad assets"), 500, "asset_integrity_error"),
+        (RuntimeError("boom"), 500, "internal_error"),
     ],
 )
 def test_expected_errors_have_stable_http_mapping(
-    client, error: Exception, status: int, stage: str, error_type: str
+    client, error: Exception, status: int, error_type: str
 ) -> None:
     app.dependency_overrides[get_token_count_service] = lambda: FailingService(error)
     response = client[0].post(
@@ -155,9 +154,7 @@ def test_expected_errors_have_stable_http_mapping(
 
     assert response.status_code == status
     message = "internal server error" if error_type == "internal_error" else str(error)
-    assert response.json() == {
-        "detail": {"stage": stage, "type": error_type, "message": message}
-    }
+    assert response.json() == {"error_code": error_type, "error_msg": message}
     fields = client[1].read_text(encoding="utf-8").strip().split("|")
     assert fields[5] == ""
     assert fields[6] == error_type
@@ -169,9 +166,13 @@ def test_malformed_json_uses_fastapi_422(client) -> None:
         "/tokenizer", content="{", headers={"content-type": "application/json"}
     )
     assert response.status_code == 422
+    assert response.json() == {
+        "error_code": "request_validation_error",
+        "error_msg": "invalid request body",
+    }
     fields = client[1].read_text(encoding="utf-8").strip().split("|")
-    assert fields[6] == "http_422"
-    assert fields[7] == "request failed with HTTP 422"
+    assert fields[6] == "request_validation_error"
+    assert fields[7] == "invalid request body"
 
 
 class RejectingScheduler:
@@ -201,7 +202,10 @@ def test_admission_rejection_returns_429_with_retry_after(
 
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "1"
-    assert response.json()["detail"]["type"] == error_type
+    assert response.json() == {
+        "error_code": error_type,
+        "error_msg": str(error),
+    }
     log_line = client[1].read_text(encoding="utf-8").strip()
     fields = log_line.split("|")
     assert fields[1] == "rejected-span"

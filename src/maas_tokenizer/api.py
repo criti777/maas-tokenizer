@@ -8,7 +8,10 @@ import os
 from time import perf_counter
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from .access_logging import (
     AccessLogConfig,
@@ -71,6 +74,53 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="MaaS Tokenizer", lifespan=lifespan)
 
 
+class TokenCountResponse(BaseModel):
+    token_count: int
+
+
+class ErrorResponse(BaseModel):
+    error_code: str
+    error_msg: str
+
+
+class APIError(Exception):
+    def __init__(
+        self,
+        status_code: int,
+        error_code: str,
+        error_msg: str,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.error_code = error_code
+        self.error_msg = error_msg
+        self.headers = headers
+
+
+@app.exception_handler(APIError)
+async def api_error_handler(request: Request, error: APIError) -> JSONResponse:
+    return JSONResponse(
+        status_code=error.status_code,
+        content={"error_code": error.error_code, "error_msg": error.error_msg},
+        headers=error.headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(
+    request: Request, error: RequestValidationError
+) -> JSONResponse:
+    error_code = "request_validation_error"
+    error_msg = "invalid request body"
+    request.state.error_code = error_code
+    request.state.error_message = error_msg
+    return JSONResponse(
+        status_code=422,
+        content={"error_code": error_code, "error_msg": error_msg},
+    )
+
+
 def get_token_count_service() -> TokenCountService:
     return _service
 
@@ -121,13 +171,20 @@ async def tokenizer_access_log(request: Request, call_next):
     return response
 
 
-@app.post("/tokenizer", response_model=int)
+@app.post(
+    "/tokenizer",
+    response_model=TokenCountResponse,
+    responses={
+        status: {"model": ErrorResponse}
+        for status in (400, 404, 422, 429, 500, 501)
+    },
+)
 async def token_count(
     request_body: dict[str, Any],
     request: Request,
     service: TokenCountService = Depends(get_token_count_service),
     scheduler: SerialScheduler = Depends(get_scheduler),
-) -> int:
+) -> TokenCountResponse:
     model = request_body.get("model")
     request.state.model = model if isinstance(model, str) else ""
     access_log_config: AccessLogConfig = request.app.state.access_log_config
@@ -142,42 +199,32 @@ async def token_count(
         request.state.queue_wait_ms = result.queue_wait_ms
         request.state.process_ms = result.process_ms
         request.state.token_count = result.value
-        return result.value
+        return TokenCountResponse(token_count=result.value)
     except QueueFullError as error:
         _capture_error(request, error, "queue_full")
-        raise _http_error(
-            429, "admission_control", "queue_full", error, headers={"Retry-After": "1"}
+        raise _api_error(
+            429, "queue_full", error, headers={"Retry-After": "1"}
         ) from error
     except QueueTimeoutError as error:
         _capture_error(request, error, "queue_timeout")
-        raise _http_error(
+        raise _api_error(
             429,
-            "admission_control",
             "queue_timeout",
             error,
             headers={"Retry-After": "1"},
         ) from error
     except UnknownModelError as error:
         _capture_error(request, error, "unknown_model")
-        raise _http_error(404, "profile_resolution", "unknown_model", error) from error
+        raise _api_error(404, "unknown_model", error) from error
     except ProcessorRequiredError as error:
         _capture_error(request, error, "multimodal_processor_required")
-        raise _http_error(
-            501,
-            "processor_required",
-            "multimodal_processor_required",
-            error,
-        ) from error
+        raise _api_error(501, "multimodal_processor_required", error) from error
     except RequestProcessingError as error:
         _capture_error(request, error, "request_processing_error")
-        raise _http_error(
-            400, "request_validation", "request_processing_error", error
-        ) from error
+        raise _api_error(400, "request_processing_error", error) from error
     except AssetIntegrityError as error:
         _capture_error(request, error, "asset_integrity_error")
-        raise _http_error(
-            500, "asset_integrity", "asset_integrity_error", error
-        ) from error
+        raise _api_error(500, "asset_integrity_error", error) from error
     except Exception as error:
         _capture_error(
             request,
@@ -185,14 +232,7 @@ async def token_count(
             "internal_error",
             message="internal server error",
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "stage": "internal",
-                "type": "internal_error",
-                "message": "internal server error",
-            },
-        ) from error
+        raise APIError(500, "internal_error", "internal server error") from error
 
 
 @app.get("/health")
@@ -213,16 +253,16 @@ def _capture_error(
     request.state.error_message = str(error) if message is None else message
 
 
-def _http_error(
+def _api_error(
     status_code: int,
-    stage: str,
-    error_type: str,
+    error_code: str,
     error: Exception,
     *,
     headers: dict[str, str] | None = None,
-) -> HTTPException:
-    return HTTPException(
-        status_code=status_code,
-        detail={"stage": stage, "type": error_type, "message": str(error)},
+) -> APIError:
+    return APIError(
+        status_code,
+        error_code,
+        str(error),
         headers=headers,
     )
