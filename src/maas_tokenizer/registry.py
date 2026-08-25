@@ -34,9 +34,10 @@ class ModelRegistry:
         by_alias: dict[str, ModelProfile] = {}
         for profile in self._profiles:
             for alias in (profile.profile_id, profile.repository, *profile.aliases):
-                if alias in by_alias:
+                normalized_alias = alias.casefold()
+                if normalized_alias in by_alias:
                     raise ValueError(f"duplicate model alias: {alias}")
-                by_alias[alias] = profile
+                by_alias[normalized_alias] = profile
         self._by_alias = by_alias
 
     @classmethod
@@ -50,7 +51,6 @@ class ModelRegistry:
 
     def resolve(self, alias: str) -> ModelProfile:
         try:
-            return self._by_alias[alias]
+            return self._by_alias[alias.casefold()]
         except KeyError as error:
             raise UnknownModelError(f"unknown model alias: {alias}") from error
-

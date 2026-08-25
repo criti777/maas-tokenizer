@@ -27,3 +27,18 @@ def test_registry_rejects_unknown_model() -> None:
     with pytest.raises(UnknownModelError):
         registry.resolve("not-a-model")
 
+
+@pytest.mark.parametrize(
+    ("alias", "expected_profile"),
+    [
+        ("GLM-5.2", "glm-5.2"),
+        ("DeepSeek-V4", "deepseek-v4"),
+        ("DEEPSEEK-AI/DEEPSEEK-V4-FLASH", "deepseek-v4"),
+        ("minimaxai/minimax-m2.7", "minimax-m2.7"),
+    ],
+)
+def test_registry_resolves_model_aliases_case_insensitively(
+    alias: str, expected_profile: str
+) -> None:
+    registry = ModelRegistry.from_file(PROFILES)
+    assert registry.resolve(alias).profile_id == expected_profile
