@@ -30,13 +30,13 @@ python3.11 -m venv .venv
 
 ## Pod 内排队与限流
 
-`/tokenizer` 使用有界 FIFO 队列。默认最多有 1 个请求执行、100 个请求等待：队列已满时立即返回 `429 queue_full`；请求排队 2 秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。
+`/tokenizer` 使用有界 FIFO 队列。默认最多有 1 个请求执行、100 个请求等待：队列已满时立即返回 `429 queue_full`；请求排队 200 毫秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。该超时只限制开始执行前的排队时间，不限制已经开始的模板渲染和 tokenizer encode。
 
 配置项：
 
 ```text
 TOKENIZER_QUEUE_SIZE=100
-TOKENIZER_QUEUE_TIMEOUT_SECONDS=2
+TOKENIZER_QUEUE_TIMEOUT_MS=200
 TOKENIZER_LOG_PATH=/opt/cloud/logs/maas-tokenizer/access.log
 TOKENIZER_LOG_MAX_BYTES=104857600
 TOKENIZER_LOG_BACKUP_COUNT=5

@@ -53,6 +53,10 @@ def _positive_float(name: str, default: float) -> float:
     return value
 
 
+def _queue_timeout_seconds() -> float:
+    return _positive_float("TOKENIZER_QUEUE_TIMEOUT_MS", 200.0) / 1000
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     run_logger = configure_run_logger(RunLogConfig.from_env())
@@ -61,9 +65,7 @@ async def lifespan(application: FastAPI):
     try:
         scheduler = SerialScheduler(
             queue_size=_positive_int("TOKENIZER_QUEUE_SIZE", 100),
-            queue_timeout_seconds=_positive_float(
-                "TOKENIZER_QUEUE_TIMEOUT_SECONDS", 2.0
-            ),
+            queue_timeout_seconds=_queue_timeout_seconds(),
         )
         access_log_config = AccessLogConfig.from_env()
         access_logger = configure_access_logger(access_log_config)

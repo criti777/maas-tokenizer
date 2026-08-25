@@ -4,6 +4,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 import pytest
 
+import maas_tokenizer.api as api_module
 from maas_tokenizer.api import app, get_scheduler, get_token_count_service
 from maas_tokenizer.assets import AssetIntegrityError
 from maas_tokenizer.errors import (
@@ -314,11 +315,23 @@ def test_warmup_failure_prevents_startup_and_closes_scheduler(
     assert created[0].closed is True
 
 
+def test_queue_timeout_defaults_to_200_milliseconds(monkeypatch) -> None:
+    monkeypatch.delenv("TOKENIZER_QUEUE_TIMEOUT_MS", raising=False)
+
+    assert api_module._queue_timeout_seconds() == pytest.approx(0.2)
+
+
+def test_queue_timeout_converts_milliseconds_to_seconds(monkeypatch) -> None:
+    monkeypatch.setenv("TOKENIZER_QUEUE_TIMEOUT_MS", "275")
+
+    assert api_module._queue_timeout_seconds() == pytest.approx(0.275)
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [
         ("TOKENIZER_QUEUE_SIZE", "0"),
-        ("TOKENIZER_QUEUE_TIMEOUT_SECONDS", "0"),
+        ("TOKENIZER_QUEUE_TIMEOUT_MS", "0"),
     ],
 )
 def test_startup_rejects_non_positive_queue_configuration(
