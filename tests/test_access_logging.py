@@ -56,7 +56,6 @@ def test_access_log_is_written_to_stdout_and_file(tmp_path: Path, capsys) -> Non
         "|1.25"
         "|2.50"
         "|4.00"
-        "|"
     )
 
 

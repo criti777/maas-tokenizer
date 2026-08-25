@@ -45,7 +45,7 @@ def test_token_count_endpoint_returns_object_and_logs_access(client) -> None:
     assert response.json() == {"token_count": 18}
     log_line = log_path.read_text(encoding="utf-8").strip()
     fields = log_line.split("|")
-    assert len(fields) == 13
+    assert len(fields) == 12
     assert fields[1] == "span-123"
     assert fields[2] == "request-456"
     assert fields[3] == "glm-5.2"
@@ -53,7 +53,6 @@ def test_token_count_endpoint_returns_object_and_logs_access(client) -> None:
     assert fields[5] == "18"
     assert fields[6:8] == ["", ""]
     assert fields[8] == "200"
-    assert fields[12] == ""
 
 
 def test_missing_request_ids_are_logged_as_empty_values(client) -> None:

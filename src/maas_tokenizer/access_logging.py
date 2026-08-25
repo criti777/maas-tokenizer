@@ -136,7 +136,7 @@ def configure_access_logger(config: AccessLogConfig) -> logging.Logger:
 
 
 def log_access(logger: logging.Logger, record: AccessRecord) -> None:
-    values = [
+    values: list[object] = [
         record.timestamp.astimezone(_ACCESS_LOG_TIMEZONE).strftime(
             "%Y-%m-%d %H:%M:%S.%f"
         )[:-3],
@@ -151,6 +151,7 @@ def log_access(logger: logging.Logger, record: AccessRecord) -> None:
         f"{record.queue_wait_ms:.2f}",
         f"{record.process_ms:.2f}",
         f"{record.total_ms:.2f}",
-        record.request_body,
     ]
+    if record.request_body is not None:
+        values.append(record.request_body)
     logger.info("|".join(sanitize_log_value(value) for value in values))
