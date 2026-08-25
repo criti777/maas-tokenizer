@@ -2,10 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /opt/cloud/services/maas-tokenizer
 
-ENV PROD_ENV=1 \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/opt/cloud/services/maas-tokenizer/src:/opt/cloud/services/maas-tokenizer \
+    PYTHONPATH=/opt/cloud/services/maas-tokenizer/src:/opt/cloud/services/maas-tokenizer
+
+# 安装生产依赖。业务运行参数放在此层之后，调整参数时可复用依赖缓存。
+COPY requirements.txt ./requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
+
+ENV PROD_ENV=1 \
     TOKENIZER_LOG_PATH=/opt/cloud/logs/maas-tokenizer/access.log \
     TOKENIZER_LOG_MAX_BYTES=104857600 \
     TOKENIZER_LOG_BACKUP_COUNT=5 \
@@ -17,10 +22,6 @@ ENV PROD_ENV=1 \
     TOKENIZER_RUN_LOG_LEVEL=INFO \
     TOKENIZER_QUEUE_SIZE=100 \
     TOKENIZER_QUEUE_TIMEOUT_MS=200
-
-# 安装生产依赖
-COPY requirements.txt ./requirements.txt
-RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # 创建运行用户和日志目录
 RUN groupadd --gid 1000 service \
