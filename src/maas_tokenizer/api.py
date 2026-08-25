@@ -16,6 +16,7 @@ from .access_logging import (
     AccessRecord,
     configure_access_logger,
     log_access,
+    prepare_request_body_for_log,
 )
 from .service import TokenCountService
 from .assets import AssetIntegrityError
@@ -52,9 +53,11 @@ async def lifespan(application: FastAPI):
             "TOKENIZER_QUEUE_TIMEOUT_SECONDS", 2.0
         ),
     )
-    logger = configure_access_logger(AccessLogConfig.from_env())
+    access_log_config = AccessLogConfig.from_env()
+    logger = configure_access_logger(access_log_config)
     application.state.scheduler = scheduler
     application.state.access_logger = logger
+    application.state.access_log_config = access_log_config
     await scheduler.start()
     try:
         await scheduler.submit(lambda: _service.count(_WARMUP_REQUEST))
@@ -88,6 +91,8 @@ async def tokenizer_access_log(request: Request, call_next):
     request.state.access_reason = "-"
     request.state.queue_wait_ms = 0.0
     request.state.process_ms = 0.0
+    request.state.request_body_bytes = None
+    request.state.request_body = None
     response = await call_next(request)
     if response.status_code >= 400 and request.state.access_reason == "-":
         request.state.access_reason = f"http_{response.status_code}"
@@ -103,6 +108,8 @@ async def tokenizer_access_log(request: Request, call_next):
             queue_wait_ms=request.state.queue_wait_ms,
             process_ms=request.state.process_ms,
             total_ms=(perf_counter() - started_at) * 1000,
+            request_body_bytes=request.state.request_body_bytes,
+            request_body=request.state.request_body,
         ),
     )
     return response
@@ -117,6 +124,14 @@ async def token_count(
 ) -> int:
     model = request_body.get("model")
     request.state.model = model if isinstance(model, str) else "-"
+    access_log_config: AccessLogConfig = request.app.state.access_log_config
+    if access_log_config.log_request_body:
+        prepared_body = prepare_request_body_for_log(
+            request_body,
+            max_bytes=access_log_config.request_body_max_bytes,
+        )
+        request.state.request_body_bytes = prepared_body.byte_count
+        request.state.request_body = prepared_body.value
     try:
         result = await scheduler.submit(lambda: service.count(request_body))
         request.state.queue_wait_ms = result.queue_wait_ms

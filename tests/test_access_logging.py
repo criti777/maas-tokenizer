@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 import logging
 from pathlib import Path
@@ -9,6 +10,7 @@ from maas_tokenizer.access_logging import (
     AccessRecord,
     configure_access_logger,
     log_access,
+    prepare_request_body_for_log,
 )
 
 
@@ -76,6 +78,84 @@ def test_access_log_rotates(tmp_path: Path) -> None:
 
     assert log_path.exists()
     assert (tmp_path / "access.log.1").exists()
+
+
+def test_request_body_logging_is_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("TOKENIZER_LOG_REQUEST_BODY", raising=False)
+    monkeypatch.delenv("TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES", raising=False)
+
+    config = AccessLogConfig.from_env()
+
+    assert config.log_request_body is False
+    assert config.request_body_max_bytes == 64 * 1024
+
+
+@pytest.mark.parametrize("value", ["true", "TRUE", "1", "yes", "on"])
+def test_request_body_logging_accepts_enabled_values(monkeypatch, value: str) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY", value)
+
+    assert AccessLogConfig.from_env().log_request_body is True
+
+
+@pytest.mark.parametrize("value", ["false", "FALSE", "0", "no", "off"])
+def test_request_body_logging_accepts_disabled_values(monkeypatch, value: str) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY", value)
+
+    assert AccessLogConfig.from_env().log_request_body is False
+
+
+def test_request_body_logging_rejects_invalid_boolean(monkeypatch) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY", "sometimes")
+
+    with pytest.raises(ValueError, match="TOKENIZER_LOG_REQUEST_BODY"):
+        AccessLogConfig.from_env()
+
+
+def test_request_body_logging_rejects_non_positive_limit(monkeypatch) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES", "0")
+
+    with pytest.raises(ValueError, match="TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES"):
+        AccessLogConfig.from_env()
+
+
+def test_request_body_uses_compact_json_and_utf8_byte_size() -> None:
+    body = {"model": "glm-5.2", "messages": [{"content": "你好 world"}]}
+
+    prepared = prepare_request_body_for_log(body, max_bytes=1024)
+
+    expected = '{"model":"glm-5.2","messages":[{"content":"你好 world"}]}'
+    assert prepared.value == expected
+    assert prepared.byte_count == len(expected.encode("utf-8"))
+
+
+def test_oversized_request_body_is_not_logged() -> None:
+    prepared = prepare_request_body_for_log({"content": "你好"}, max_bytes=1)
+
+    assert prepared.byte_count > 1
+    assert prepared.value == "<omitted_too_large>"
+
+
+def test_request_body_access_log_stays_on_one_physical_line(tmp_path: Path) -> None:
+    log_path = tmp_path / "access.log"
+    logger = configure_access_logger(
+        AccessLogConfig(log_path=log_path, max_bytes=10_000, backup_count=1)
+    )
+    prepared = prepare_request_body_for_log(
+        {"messages": [{"content": "first\nsecond\tthird"}]}, max_bytes=1024
+    )
+    record = replace(
+        _record(),
+        request_body_bytes=prepared.byte_count,
+        request_body=prepared.value,
+    )
+
+    log_access(logger, record)
+    for handler in logger.handlers:
+        handler.flush()
+
+    lines = log_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    assert 'request_body={"messages":[{"content":"first\\nsecond\\tthird"}]}' in lines[0]
 
 
 @pytest.mark.parametrize(

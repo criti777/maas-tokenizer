@@ -52,6 +52,55 @@ def test_token_count_endpoint_returns_only_count_and_logs_access(client) -> None
     assert "queue_wait_ms=" in log_line
     assert "process_ms=" in log_line
     assert "total_ms=" in log_line
+    assert "request_body_bytes=" not in log_line
+    assert "request_body=" not in log_line
+
+
+def test_enabled_request_body_logging_records_compact_json(
+    tmp_path, monkeypatch
+) -> None:
+    log_path = tmp_path / "access.log"
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(log_path))
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY", "true")
+    monkeypatch.setattr("maas_tokenizer.api._service.count", lambda request: 7)
+    body = {
+        "model": "glm-5.2",
+        "messages": [{"role": "user", "content": "你好 world\nsecond"}],
+    }
+
+    with TestClient(app) as test_client:
+        response = test_client.post("/tokenizer", json=body)
+
+    expected = (
+        '{"model":"glm-5.2","messages":'
+        '[{"role":"user","content":"你好 world\\nsecond"}]}'
+    )
+    log_line = log_path.read_text(encoding="utf-8").strip()
+    assert response.status_code == 200
+    assert f"request_body_bytes={len(expected.encode('utf-8'))}" in log_line
+    assert f"request_body={expected}" in log_line
+    assert len(log_line.splitlines()) == 1
+
+
+def test_oversized_request_body_logging_uses_omission_marker(
+    tmp_path, monkeypatch
+) -> None:
+    log_path = tmp_path / "access.log"
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(log_path))
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY", "true")
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES", "1")
+    monkeypatch.setattr("maas_tokenizer.api._service.count", lambda request: 7)
+
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/tokenizer", json={"model": "glm-5.2", "messages": []}
+        )
+
+    log_line = log_path.read_text(encoding="utf-8").strip()
+    assert response.status_code == 200
+    assert "request_body_bytes=" in log_line
+    assert "request_body=<omitted_too_large>" in log_line
+    assert 'request_body={"model"' not in log_line
 
 
 def test_old_token_count_endpoint_is_not_available(client) -> None:
@@ -139,6 +188,32 @@ def test_admission_rejection_returns_429_with_retry_after(
     assert "span_id=rejected-span" in log_line
     assert "status=rejected" in log_line
     assert f"reason={error_type}" in log_line
+
+
+def test_enabled_request_body_logging_is_kept_for_rejected_request(
+    tmp_path, monkeypatch
+) -> None:
+    log_path = tmp_path / "access.log"
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(log_path))
+    monkeypatch.setenv("TOKENIZER_LOG_REQUEST_BODY", "true")
+    monkeypatch.setattr("maas_tokenizer.api._service.count", lambda request: 1)
+    app.dependency_overrides[get_scheduler] = lambda: RejectingScheduler(
+        QueueFullError("tokenizer queue is full")
+    )
+
+    try:
+        with TestClient(app) as test_client:
+            response = test_client.post(
+                "/tokenizer",
+                json={"model": "glm-5.2", "messages": []},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    log_line = log_path.read_text(encoding="utf-8").strip()
+    assert response.status_code == 429
+    assert "status=rejected" in log_line
+    assert 'request_body={"model":"glm-5.2","messages":[]}' in log_line
 
 
 def test_health_is_available_without_entering_scheduler(client) -> None:

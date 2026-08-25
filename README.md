@@ -40,13 +40,17 @@ TOKENIZER_QUEUE_TIMEOUT_SECONDS=2
 TOKENIZER_LOG_PATH=/opt/cloud/logs/access.log
 TOKENIZER_LOG_MAX_BYTES=104857600
 TOKENIZER_LOG_BACKUP_COUNT=5
+TOKENIZER_LOG_REQUEST_BODY=false
+TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES=65536
 ```
 
 `GET /health` 不进入计算队列，可直接用于 Kubernetes 存活探针。
 
 ## 访问日志
 
-每个 `/tokenizer` 请求输出一条单行日志，同时写入 stdout 和 `TOKENIZER_LOG_PATH`。日志包含 `X-Span-Id`（缺失时自动生成）、model、成功/失败/拒绝状态、HTTP 状态、排队耗时、计算耗时和总耗时，不记录 messages 或请求正文。
+每个 `/tokenizer` 请求输出一条单行日志，同时写入 stdout 和 `TOKENIZER_LOG_PATH`。日志包含 `X-Span-Id`（缺失时自动生成）、model、成功/失败/拒绝状态、HTTP 状态、排队耗时、计算耗时和总耗时。请求正文默认不记录。
+
+联调时可设置 `TOKENIZER_LOG_REQUEST_BODY=true`，把 FastAPI 已解析的请求对象以紧凑 JSON 追加到同一行。JSON 的 UTF-8 大小不超过 `TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES` 时记录完整正文；超过限制时只记录实际字节数和 `request_body=<omitted_too_large>`，不会截断正文。开启后日志可能包含完整消息内容，请只在允许保留请求内容的环境使用。
 
 默认日志文件达到 100 MB 后轮转并保留 5 份。容器运行用户必须能够创建和写入 `/opt/cloud/logs`；在 CCE 中应把日志卷挂载到该目录并赋予 UID/GID 1000 写权限。
 
