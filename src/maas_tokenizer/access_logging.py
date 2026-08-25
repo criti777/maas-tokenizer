@@ -10,6 +10,10 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import sys
+from zoneinfo import ZoneInfo
+
+
+_ACCESS_LOG_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
 @dataclass(frozen=True)
@@ -94,13 +98,14 @@ class AccessRecord:
 
 
 def sanitize_log_value(value: object) -> str:
+    if value is None:
+        return ""
     return (
         str(value)
-        .replace("\\", "\\\\")
+        .replace("|", "%7C")
         .replace("\r", "\\r")
         .replace("\n", "\\n")
         .replace("\t", "\\t")
-        .replace(" ", "_")
     )
 
 
@@ -130,8 +135,10 @@ def configure_access_logger(config: AccessLogConfig) -> logging.Logger:
 
 def log_access(logger: logging.Logger, record: AccessRecord) -> None:
     values = {
-        "timestamp": record.timestamp.isoformat(timespec="milliseconds"),
-        "span_id": record.span_id,
+        "timestamp": record.timestamp.astimezone(_ACCESS_LOG_TIMEZONE).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )[:-3],
+        "x_span_id": record.span_id,
         "model": record.model,
         "status": record.status,
         "reason": record.reason,
@@ -145,5 +152,5 @@ def log_access(logger: logging.Logger, record: AccessRecord) -> None:
     ]
     if record.request_body_bytes is not None and record.request_body is not None:
         fields.append(f"request_body_bytes={record.request_body_bytes}")
-        fields.append(f"request_body={record.request_body}")
-    logger.info(" ".join(fields))
+        fields.append(f"request_body={sanitize_log_value(record.request_body)}")
+    logger.info("|".join(fields))

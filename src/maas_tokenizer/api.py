@@ -86,15 +86,15 @@ async def tokenizer_access_log(request: Request, call_next):
         return await call_next(request)
     started_at = perf_counter()
     request.state.span_id = request.headers.get("X-Span-Id") or str(uuid4())
-    request.state.model = "-"
+    request.state.model = ""
     request.state.access_status = "failed"
-    request.state.access_reason = "-"
+    request.state.access_reason = ""
     request.state.queue_wait_ms = 0.0
     request.state.process_ms = 0.0
     request.state.request_body_bytes = None
     request.state.request_body = None
     response = await call_next(request)
-    if response.status_code >= 400 and request.state.access_reason == "-":
+    if response.status_code >= 400 and request.state.access_reason == "":
         request.state.access_reason = f"http_{response.status_code}"
     log_access(
         request.app.state.access_logger,
@@ -123,7 +123,7 @@ async def token_count(
     scheduler: SerialScheduler = Depends(get_scheduler),
 ) -> int:
     model = request_body.get("model")
-    request.state.model = model if isinstance(model, str) else "-"
+    request.state.model = model if isinstance(model, str) else ""
     access_log_config: AccessLogConfig = request.app.state.access_log_config
     if access_log_config.log_request_body:
         prepared_body = prepare_request_body_for_log(

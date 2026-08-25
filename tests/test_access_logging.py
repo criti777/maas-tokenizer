@@ -20,7 +20,7 @@ def _record(span_id: str = "span-1") -> AccessRecord:
         span_id=span_id,
         model="glm-5.2",
         status="success",
-        reason="-",
+        reason="",
         http_status=200,
         queue_wait_ms=1.25,
         process_ms=2.5,
@@ -41,28 +41,46 @@ def test_access_log_is_written_to_stdout_and_file(tmp_path: Path, capsys) -> Non
     stdout_line = capsys.readouterr().out.strip()
     file_line = log_path.read_text(encoding="utf-8").strip()
     assert stdout_line == file_line
-    assert "span_id=span-1" in file_line
-    assert "model=glm-5.2" in file_line
-    assert "status=success" in file_line
-    assert "http_status=200" in file_line
-    assert "queue_wait_ms=1.25" in file_line
-    assert "process_ms=2.50" in file_line
-    assert "total_ms=4.00" in file_line
+    assert file_line == (
+        "timestamp=2026-08-24 15:20:31.000"
+        "|x_span_id=span-1"
+        "|model=glm-5.2"
+        "|status=success"
+        "|reason="
+        "|http_status=200"
+        "|queue_wait_ms=1.25"
+        "|process_ms=2.50"
+        "|total_ms=4.00"
+    )
 
 
-def test_access_log_sanitizes_newlines(tmp_path: Path) -> None:
+def test_access_log_encodes_delimiter_and_crlf(tmp_path: Path) -> None:
     log_path = tmp_path / "access.log"
     logger = configure_access_logger(
         AccessLogConfig(log_path=log_path, max_bytes=10_000, backup_count=1)
     )
 
-    log_access(logger, _record("good\nstatus=forged"))
+    log_access(logger, _record("good|value\r\nstatus=forged"))
     for handler in logger.handlers:
         handler.flush()
 
     lines = log_path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
-    assert "span_id=good\\nstatus=forged" in lines[0]
+    assert "x_span_id=good%7Cvalue\\r\\nstatus=forged" in lines[0]
+
+
+def test_access_log_preserves_spaces_inside_fields(tmp_path: Path) -> None:
+    log_path = tmp_path / "access.log"
+    logger = configure_access_logger(
+        AccessLogConfig(log_path=log_path, max_bytes=10_000, backup_count=1)
+    )
+
+    log_access(logger, replace(_record(), model="glm 5.2 preview"))
+    for handler in logger.handlers:
+        handler.flush()
+
+    line = log_path.read_text(encoding="utf-8").strip()
+    assert "|model=glm 5.2 preview|" in line
 
 
 def test_access_log_rotates(tmp_path: Path) -> None:
@@ -141,7 +159,8 @@ def test_request_body_access_log_stays_on_one_physical_line(tmp_path: Path) -> N
         AccessLogConfig(log_path=log_path, max_bytes=10_000, backup_count=1)
     )
     prepared = prepare_request_body_for_log(
-        {"messages": [{"content": "first\nsecond\tthird"}]}, max_bytes=1024
+        {"messages": [{"content": "first|second\nthird\tfourth"}]},
+        max_bytes=1024,
     )
     record = replace(
         _record(),
@@ -155,7 +174,10 @@ def test_request_body_access_log_stays_on_one_physical_line(tmp_path: Path) -> N
 
     lines = log_path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
-    assert 'request_body={"messages":[{"content":"first\\nsecond\\tthird"}]}' in lines[0]
+    assert (
+        'request_body={"messages":[{"content":"first%7Csecond\\nthird\\tfourth"}]}'
+        in lines[0]
+    )
 
 
 @pytest.mark.parametrize(

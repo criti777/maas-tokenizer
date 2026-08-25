@@ -45,7 +45,7 @@ def test_token_count_endpoint_returns_only_count_and_logs_access(client) -> None
     assert response.json() == 18
     assert type(response.json()) is int
     log_line = log_path.read_text(encoding="utf-8").strip()
-    assert "span_id=span-123" in log_line
+    assert "x_span_id=span-123" in log_line
     assert "model=glm-5.2" in log_line
     assert "status=success" in log_line
     assert "http_status=200" in log_line
@@ -185,7 +185,7 @@ def test_admission_rejection_returns_429_with_retry_after(
     assert response.headers["Retry-After"] == "1"
     assert response.json()["detail"]["type"] == error_type
     log_line = client[1].read_text(encoding="utf-8").strip()
-    assert "span_id=rejected-span" in log_line
+    assert "x_span_id=rejected-span" in log_line
     assert "status=rejected" in log_line
     assert f"reason={error_type}" in log_line
 

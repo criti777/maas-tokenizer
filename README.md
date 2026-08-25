@@ -52,6 +52,20 @@ TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES=65536
 
 联调时可设置 `TOKENIZER_LOG_REQUEST_BODY=true`，把 FastAPI 已解析的请求对象以紧凑 JSON 追加到同一行。JSON 的 UTF-8 大小不超过 `TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES` 时记录完整正文；超过限制时只记录实际字节数和 `request_body=<omitted_too_large>`，不会截断正文。开启后日志可能包含完整消息内容，请只在允许保留请求内容的环境使用。
 
+访问日志使用 `Asia/Shanghai` 时区，时间格式为 `yyyy-MM-dd HH:mm:ss.SSS`，字段之间用 `|` 分隔。请求头 `X-Span-Id` 在日志中的字段名为 `x_span_id`；浮点数保留两位小数，整数按原值输出，空值输出为空字符串。字段值中的 `|` 编码为 `%7C`，CR、LF 和 Tab 分别编码为 `\r`、`\n` 和 `\t`，确保每个请求只占一行。
+
+默认格式：
+
+```text
+timestamp=<时间>|x_span_id=<请求标识>|model=<模型>|status=<状态>|reason=<原因>|http_status=<状态码>|queue_wait_ms=<排队毫秒>|process_ms=<处理毫秒>|total_ms=<总毫秒>
+```
+
+示例：
+
+```text
+timestamp=2026-08-25 15:30:12.083|x_span_id=abc-123|model=glm-5.2|status=success|reason=|http_status=200|queue_wait_ms=0.03|process_ms=13.65|total_ms=14.73
+```
+
 默认日志文件达到 100 MB 后轮转并保留 5 份。容器运行用户必须能够创建和写入 `/opt/cloud/logs`；在 CCE 中应把日志卷挂载到该目录并赋予 UID/GID 1000 写权限。
 
 ## API
