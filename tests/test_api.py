@@ -34,7 +34,7 @@ def test_token_count_endpoint_returns_only_count_and_logs_access(client) -> None
     app.dependency_overrides[get_token_count_service] = lambda: FixedService()
     response = test_client.post(
         "/tokenizer",
-        headers={"X-Span-Id": "span-123"},
+        headers={"X-Span-Id": "span-123", "X-Request-Id": "request-456"},
         json={
             "model": "glm-5.2",
             "messages": [{"role": "user", "content": "你好"}],
@@ -45,15 +45,27 @@ def test_token_count_endpoint_returns_only_count_and_logs_access(client) -> None
     assert response.json() == 18
     assert type(response.json()) is int
     log_line = log_path.read_text(encoding="utf-8").strip()
-    assert "x_span_id=span-123" in log_line
-    assert "model=glm-5.2" in log_line
-    assert "status=success" in log_line
-    assert "http_status=200" in log_line
-    assert "queue_wait_ms=" in log_line
-    assert "process_ms=" in log_line
-    assert "total_ms=" in log_line
-    assert "request_body_bytes=" not in log_line
-    assert "request_body=" not in log_line
+    fields = log_line.split("|")
+    assert len(fields) == 13
+    assert fields[1] == "span-123"
+    assert fields[2] == "request-456"
+    assert fields[3] == "glm-5.2"
+    assert int(fields[4]) == len(response.request.content)
+    assert fields[5] == "18"
+    assert fields[6:8] == ["", ""]
+    assert fields[8] == "200"
+    assert fields[12] == ""
+
+
+def test_missing_request_ids_are_logged_as_empty_values(client) -> None:
+    response = client[0].post(
+        "/tokenizer",
+        json={"model": "glm-5.2", "messages": []},
+    )
+
+    fields = client[1].read_text(encoding="utf-8").strip().split("|")
+    assert response.status_code == 200
+    assert fields[1:3] == ["", ""]
 
 
 def test_enabled_request_body_logging_records_compact_json(
@@ -76,9 +88,9 @@ def test_enabled_request_body_logging_records_compact_json(
         '[{"role":"user","content":"你好 world\\nsecond"}]}'
     )
     log_line = log_path.read_text(encoding="utf-8").strip()
+    fields = log_line.split("|")
     assert response.status_code == 200
-    assert f"request_body_bytes={len(expected.encode('utf-8'))}" in log_line
-    assert f"request_body={expected}" in log_line
+    assert fields[12] == expected
     assert len(log_line.splitlines()) == 1
 
 
@@ -97,10 +109,9 @@ def test_oversized_request_body_logging_uses_omission_marker(
         )
 
     log_line = log_path.read_text(encoding="utf-8").strip()
+    fields = log_line.split("|")
     assert response.status_code == 200
-    assert "request_body_bytes=" in log_line
-    assert "request_body=<omitted_too_large>" in log_line
-    assert 'request_body={"model"' not in log_line
+    assert fields[12] == "<omitted_too_large>"
 
 
 def test_old_token_count_endpoint_is_not_available(client) -> None:
@@ -147,6 +158,10 @@ def test_expected_errors_have_stable_http_mapping(
     assert response.json() == {
         "detail": {"stage": stage, "type": error_type, "message": message}
     }
+    fields = client[1].read_text(encoding="utf-8").strip().split("|")
+    assert fields[5] == ""
+    assert fields[6] == error_type
+    assert fields[7] == message
 
 
 def test_malformed_json_uses_fastapi_422(client) -> None:
@@ -154,6 +169,9 @@ def test_malformed_json_uses_fastapi_422(client) -> None:
         "/tokenizer", content="{", headers={"content-type": "application/json"}
     )
     assert response.status_code == 422
+    fields = client[1].read_text(encoding="utf-8").strip().split("|")
+    assert fields[6] == "http_422"
+    assert fields[7] == "request failed with HTTP 422"
 
 
 class RejectingScheduler:
@@ -185,9 +203,11 @@ def test_admission_rejection_returns_429_with_retry_after(
     assert response.headers["Retry-After"] == "1"
     assert response.json()["detail"]["type"] == error_type
     log_line = client[1].read_text(encoding="utf-8").strip()
-    assert "x_span_id=rejected-span" in log_line
-    assert "status=rejected" in log_line
-    assert f"reason={error_type}" in log_line
+    fields = log_line.split("|")
+    assert fields[1] == "rejected-span"
+    assert fields[5] == ""
+    assert fields[6] == error_type
+    assert fields[7] == str(error)
 
 
 def test_enabled_request_body_logging_is_kept_for_rejected_request(
@@ -211,9 +231,10 @@ def test_enabled_request_body_logging_is_kept_for_rejected_request(
         app.dependency_overrides.clear()
 
     log_line = log_path.read_text(encoding="utf-8").strip()
+    fields = log_line.split("|")
     assert response.status_code == 429
-    assert "status=rejected" in log_line
-    assert 'request_body={"model":"glm-5.2","messages":[]}' in log_line
+    assert fields[6] == "queue_full"
+    assert fields[12] == '{"model":"glm-5.2","messages":[]}'
 
 
 def test_health_is_available_without_entering_scheduler(client) -> None:

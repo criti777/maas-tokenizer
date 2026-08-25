@@ -48,22 +48,34 @@ TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES=65536
 
 ## 访问日志
 
-每个 `/tokenizer` 请求输出一条单行日志，同时写入 stdout 和 `TOKENIZER_LOG_PATH`。日志包含 `X-Span-Id`（缺失时自动生成）、model、成功/失败/拒绝状态、HTTP 状态、排队耗时、计算耗时和总耗时。请求正文默认不记录。
+每个 `/tokenizer` 请求输出一条单行日志，同时写入 stdout 和 `TOKENIZER_LOG_PATH`。日志包含请求头中的 `X-Span-Id`、`X-Request-Id` 和 `Content-Length`，以及 model、成功时计算出的 token 数量、错误信息、HTTP 状态、排队耗时、计算耗时和总耗时。请求 ID 缺失时记录空字符串，不在服务内自动生成。请求正文默认不记录。
 
-联调时可设置 `TOKENIZER_LOG_REQUEST_BODY=true`，把 FastAPI 已解析的请求对象以紧凑 JSON 追加到同一行。JSON 的 UTF-8 大小不超过 `TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES` 时记录完整正文；超过限制时只记录实际字节数和 `request_body=<omitted_too_large>`，不会截断正文。开启后日志可能包含完整消息内容，请只在允许保留请求内容的环境使用。
+联调时可设置 `TOKENIZER_LOG_REQUEST_BODY=true`，把 FastAPI 已解析的请求对象以紧凑 JSON 写入最后一列。JSON 的 UTF-8 大小不超过 `TOKENIZER_LOG_REQUEST_BODY_MAX_BYTES` 时记录完整正文；超过限制时只记录实际字节数，并在最后一列写入 `<omitted_too_large>`，不会截断正文。开启后日志可能包含完整消息内容，请只在允许保留请求内容的环境使用。
 
-访问日志使用 `Asia/Shanghai` 时区，时间格式为 `yyyy-MM-dd HH:mm:ss.SSS`，字段之间用 `|` 分隔。请求头 `X-Span-Id` 在日志中的字段名为 `x_span_id`；浮点数保留两位小数，整数按原值输出，空值输出为空字符串。字段值中的 `|` 编码为 `%7C`，CR、LF 和 Tab 分别编码为 `\r`、`\n` 和 `\t`，确保每个请求只占一行。
+访问日志使用 `Asia/Shanghai` 时区，时间格式为 `yyyy-MM-dd HH:mm:ss.SSS`，字段之间用 `|` 分隔。浮点数保留两位小数，整数按原值输出，空值输出为空字符串。字段值中的 `|` 编码为 `%7C`，CR、LF 和 Tab 分别编码为 `\r`、`\n` 和 `\t`，确保每个请求只占一行。
 
-默认格式：
+日志采用固定 13 列纯 value 格式，不输出字段名。字段顺序：
 
 ```text
-timestamp=<时间>|x_span_id=<请求标识>|model=<模型>|status=<状态>|reason=<原因>|http_status=<状态码>|queue_wait_ms=<排队毫秒>|process_ms=<处理毫秒>|total_ms=<总毫秒>
+timestamp|x_span_id|x_request_id|model|content_length|token_count|error_code|error_message|http_status|queue_wait_ms|process_ms|total_ms|request_body
 ```
 
-示例：
+请求体日志关闭时，最后一列为空：
 
 ```text
-timestamp=2026-08-25 15:30:12.083|x_span_id=abc-123|model=glm-5.2|status=success|reason=|http_status=200|queue_wait_ms=0.03|process_ms=13.65|total_ms=14.73
+2026-08-25 15:30:12.083|span-123|request-456|glm-5.2|82|18|||200|0.03|13.65|14.73|
+```
+
+请求体日志开启时：
+
+```text
+2026-08-25 15:30:12.083|span-123|request-456|glm-5.2|82|18|||200|0.03|13.65|14.73|{"model":"glm-5.2","messages":[{"role":"user","content":"你好"}]}
+```
+
+失败时 `token_count` 为空，并写入错误码和错误信息：
+
+```text
+2026-08-25 15:30:15.126|span-123|request-456|glm-5.2|82||queue_full|tokenizer queue is full|429|0.00|0.00|1.28|
 ```
 
 默认日志文件达到 100 MB 后轮转并保留 5 份。容器运行用户必须能够创建和写入 `/opt/cloud/logs`；在 CCE 中应把日志卷挂载到该目录并赋予 UID/GID 1000 写权限。

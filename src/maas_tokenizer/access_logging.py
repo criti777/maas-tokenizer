@@ -86,14 +86,16 @@ def prepare_request_body_for_log(
 class AccessRecord:
     timestamp: datetime
     span_id: str
+    request_id: str
     model: str
-    status: str
-    reason: str
+    content_length: str | int | None
+    token_count: int | None
+    error_code: str
+    error_message: str
     http_status: int
     queue_wait_ms: float
     process_ms: float
     total_ms: float
-    request_body_bytes: int | None = None
     request_body: str | None = None
 
 
@@ -134,23 +136,21 @@ def configure_access_logger(config: AccessLogConfig) -> logging.Logger:
 
 
 def log_access(logger: logging.Logger, record: AccessRecord) -> None:
-    values = {
-        "timestamp": record.timestamp.astimezone(_ACCESS_LOG_TIMEZONE).strftime(
+    values = [
+        record.timestamp.astimezone(_ACCESS_LOG_TIMEZONE).strftime(
             "%Y-%m-%d %H:%M:%S.%f"
         )[:-3],
-        "x_span_id": record.span_id,
-        "model": record.model,
-        "status": record.status,
-        "reason": record.reason,
-        "http_status": record.http_status,
-        "queue_wait_ms": f"{record.queue_wait_ms:.2f}",
-        "process_ms": f"{record.process_ms:.2f}",
-        "total_ms": f"{record.total_ms:.2f}",
-    }
-    fields = [
-        f"{key}={sanitize_log_value(value)}" for key, value in values.items()
+        record.span_id,
+        record.request_id,
+        record.model,
+        record.content_length,
+        record.token_count,
+        record.error_code,
+        record.error_message,
+        record.http_status,
+        f"{record.queue_wait_ms:.2f}",
+        f"{record.process_ms:.2f}",
+        f"{record.total_ms:.2f}",
+        record.request_body,
     ]
-    if record.request_body_bytes is not None and record.request_body is not None:
-        fields.append(f"request_body_bytes={record.request_body_bytes}")
-        fields.append(f"request_body={sanitize_log_value(record.request_body)}")
-    logger.info("|".join(fields))
+    logger.info("|".join(sanitize_log_value(value) for value in values))

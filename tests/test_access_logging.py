@@ -18,9 +18,12 @@ def _record(span_id: str = "span-1") -> AccessRecord:
     return AccessRecord(
         timestamp=datetime(2026, 8, 24, 7, 20, 31, tzinfo=UTC),
         span_id=span_id,
+        request_id="request-1",
         model="glm-5.2",
-        status="success",
-        reason="",
+        content_length=82,
+        token_count=18,
+        error_code="",
+        error_message="",
         http_status=200,
         queue_wait_ms=1.25,
         process_ms=2.5,
@@ -42,15 +45,18 @@ def test_access_log_is_written_to_stdout_and_file(tmp_path: Path, capsys) -> Non
     file_line = log_path.read_text(encoding="utf-8").strip()
     assert stdout_line == file_line
     assert file_line == (
-        "timestamp=2026-08-24 15:20:31.000"
-        "|x_span_id=span-1"
-        "|model=glm-5.2"
-        "|status=success"
-        "|reason="
-        "|http_status=200"
-        "|queue_wait_ms=1.25"
-        "|process_ms=2.50"
-        "|total_ms=4.00"
+        "2026-08-24 15:20:31.000"
+        "|span-1"
+        "|request-1"
+        "|glm-5.2"
+        "|82"
+        "|18"
+        "||"
+        "|200"
+        "|1.25"
+        "|2.50"
+        "|4.00"
+        "|"
     )
 
 
@@ -66,7 +72,7 @@ def test_access_log_encodes_delimiter_and_crlf(tmp_path: Path) -> None:
 
     lines = log_path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
-    assert "x_span_id=good%7Cvalue\\r\\nstatus=forged" in lines[0]
+    assert "|good%7Cvalue\\r\\nstatus=forged|" in lines[0]
 
 
 def test_access_log_preserves_spaces_inside_fields(tmp_path: Path) -> None:
@@ -80,7 +86,7 @@ def test_access_log_preserves_spaces_inside_fields(tmp_path: Path) -> None:
         handler.flush()
 
     line = log_path.read_text(encoding="utf-8").strip()
-    assert "|model=glm 5.2 preview|" in line
+    assert "|glm 5.2 preview|" in line
 
 
 def test_access_log_rotates(tmp_path: Path) -> None:
@@ -164,7 +170,6 @@ def test_request_body_access_log_stays_on_one_physical_line(tmp_path: Path) -> N
     )
     record = replace(
         _record(),
-        request_body_bytes=prepared.byte_count,
         request_body=prepared.value,
     )
 
@@ -175,7 +180,7 @@ def test_request_body_access_log_stays_on_one_physical_line(tmp_path: Path) -> N
     lines = log_path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
     assert (
-        'request_body={"messages":[{"content":"first%7Csecond\\nthird\\tfourth"}]}'
+        '|{"messages":[{"content":"first%7Csecond\\nthird\\tfourth"}]}'
         in lines[0]
     )
 

@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 import os
 from time import perf_counter
 from typing import Any
-from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 
@@ -85,30 +84,37 @@ async def tokenizer_access_log(request: Request, call_next):
     if request.url.path != "/tokenizer":
         return await call_next(request)
     started_at = perf_counter()
-    request.state.span_id = request.headers.get("X-Span-Id") or str(uuid4())
+    request.state.span_id = request.headers.get("X-Span-Id", "")
+    request.state.request_id = request.headers.get("X-Request-Id", "")
+    request.state.content_length = request.headers.get("Content-Length", "")
     request.state.model = ""
-    request.state.access_status = "failed"
-    request.state.access_reason = ""
+    request.state.token_count = None
+    request.state.error_code = ""
+    request.state.error_message = ""
     request.state.queue_wait_ms = 0.0
     request.state.process_ms = 0.0
-    request.state.request_body_bytes = None
     request.state.request_body = None
     response = await call_next(request)
-    if response.status_code >= 400 and request.state.access_reason == "":
-        request.state.access_reason = f"http_{response.status_code}"
+    if response.status_code >= 400 and request.state.error_code == "":
+        request.state.error_code = f"http_{response.status_code}"
+        request.state.error_message = (
+            f"request failed with HTTP {response.status_code}"
+        )
     log_access(
         request.app.state.access_logger,
         AccessRecord(
             timestamp=datetime.now(UTC),
             span_id=request.state.span_id,
+            request_id=request.state.request_id,
             model=request.state.model,
-            status=request.state.access_status,
-            reason=request.state.access_reason,
+            content_length=request.state.content_length,
+            token_count=request.state.token_count,
+            error_code=request.state.error_code,
+            error_message=request.state.error_message,
             http_status=response.status_code,
             queue_wait_ms=request.state.queue_wait_ms,
             process_ms=request.state.process_ms,
             total_ms=(perf_counter() - started_at) * 1000,
-            request_body_bytes=request.state.request_body_bytes,
             request_body=request.state.request_body,
         ),
     )
@@ -130,25 +136,20 @@ async def token_count(
             request_body,
             max_bytes=access_log_config.request_body_max_bytes,
         )
-        request.state.request_body_bytes = prepared_body.byte_count
         request.state.request_body = prepared_body.value
     try:
         result = await scheduler.submit(lambda: service.count(request_body))
         request.state.queue_wait_ms = result.queue_wait_ms
         request.state.process_ms = result.process_ms
-        request.state.access_status = "success"
+        request.state.token_count = result.value
         return result.value
     except QueueFullError as error:
-        _capture_error_timings(request, error)
-        request.state.access_status = "rejected"
-        request.state.access_reason = "queue_full"
+        _capture_error(request, error, "queue_full")
         raise _http_error(
             429, "admission_control", "queue_full", error, headers={"Retry-After": "1"}
         ) from error
     except QueueTimeoutError as error:
-        _capture_error_timings(request, error)
-        request.state.access_status = "rejected"
-        request.state.access_reason = "queue_timeout"
+        _capture_error(request, error, "queue_timeout")
         raise _http_error(
             429,
             "admission_control",
@@ -157,12 +158,10 @@ async def token_count(
             headers={"Retry-After": "1"},
         ) from error
     except UnknownModelError as error:
-        _capture_error_timings(request, error)
-        request.state.access_reason = "unknown_model"
+        _capture_error(request, error, "unknown_model")
         raise _http_error(404, "profile_resolution", "unknown_model", error) from error
     except ProcessorRequiredError as error:
-        _capture_error_timings(request, error)
-        request.state.access_reason = "multimodal_processor_required"
+        _capture_error(request, error, "multimodal_processor_required")
         raise _http_error(
             501,
             "processor_required",
@@ -170,20 +169,22 @@ async def token_count(
             error,
         ) from error
     except RequestProcessingError as error:
-        _capture_error_timings(request, error)
-        request.state.access_reason = "request_processing_error"
+        _capture_error(request, error, "request_processing_error")
         raise _http_error(
             400, "request_validation", "request_processing_error", error
         ) from error
     except AssetIntegrityError as error:
-        _capture_error_timings(request, error)
-        request.state.access_reason = "asset_integrity_error"
+        _capture_error(request, error, "asset_integrity_error")
         raise _http_error(
             500, "asset_integrity", "asset_integrity_error", error
         ) from error
     except Exception as error:
-        _capture_error_timings(request, error)
-        request.state.access_reason = "internal_error"
+        _capture_error(
+            request,
+            error,
+            "internal_error",
+            message="internal server error",
+        )
         raise HTTPException(
             status_code=500,
             detail={
@@ -199,9 +200,17 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def _capture_error_timings(request: Request, error: Exception) -> None:
+def _capture_error(
+    request: Request,
+    error: Exception,
+    error_code: str,
+    *,
+    message: str | None = None,
+) -> None:
     request.state.queue_wait_ms = getattr(error, "queue_wait_ms", 0.0)
     request.state.process_ms = getattr(error, "process_ms", 0.0)
+    request.state.error_code = error_code
+    request.state.error_message = str(error) if message is None else message
 
 
 def _http_error(
