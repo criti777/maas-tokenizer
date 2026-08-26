@@ -13,6 +13,7 @@ from maas_tokenizer.errors import (
     UnknownModelError,
 )
 from maas_tokenizer.scheduler import ExecutionResult, QueueFullError, QueueTimeoutError
+from maas_tokenizer.service import TokenCountService
 
 
 @pytest.fixture(autouse=True)
@@ -183,6 +184,26 @@ def test_malformed_json_uses_fastapi_422(client) -> None:
     fields = client[1].read_text(encoding="utf-8").strip().split("|")
     assert fields[6] == "request_validation_error"
     assert fields[7] == "invalid request body"
+
+
+def test_conflicting_thinking_options_return_request_processing_error(client) -> None:
+    app.dependency_overrides[get_token_count_service] = lambda: TokenCountService()
+
+    response = client[0].post(
+        "/tokenizer",
+        json={
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "hello"}],
+            "thinking": True,
+            "chat_template_kwargs": {"enable_thinking": False},
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error_code": "request_processing_error",
+        "error_msg": "conflicting thinking options",
+    }
 
 
 class RejectingScheduler:

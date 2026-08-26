@@ -17,6 +17,7 @@ from .assets import verify_asset_directory
 from .errors import ProcessorRequiredError, RequestProcessingError
 from .protocol import ChatCompletionRequest
 from .registry import ModelProfile, ModelRegistry
+from .request_compat import normalize_compatibility_fields
 from .renderers import Renderer, build_renderer
 
 
@@ -93,7 +94,7 @@ class TokenCountService:
             return renderer
 
     def count(self, request: Mapping[str, Any]) -> int:
-        request_dict = dict(request)
+        request_dict = normalize_compatibility_fields(request)
         model = request_dict.get("model")
         if not isinstance(model, str) or not model:
             raise RequestProcessingError("model is required")
