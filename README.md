@@ -61,7 +61,7 @@ TOKENIZER_RUN_LOG_LEVEL=INFO
 请求体日志关闭时采用固定 12 列纯 value 格式，不输出字段名：
 
 ```text
-timestamp|x_span_id|x_request_id|model|content_length|token_count|error_code|error_message|http_status|queue_wait_ms|process_ms|total_ms
+timestamp|x_span_id|x_request_id|model|content_length|prompt_tokens|error_code|error_message|http_status|queue_wait_ms|process_ms|total_ms
 ```
 
 请求体日志开启时才在末尾追加第 13 列 `request_body`：
@@ -70,7 +70,7 @@ timestamp|x_span_id|x_request_id|model|content_length|token_count|error_code|err
 2026-08-25 15:30:12.083|span-123|request-456|glm-5.2|82|18|||200|0.03|13.65|14.73|{"model":"glm-5.2","messages":[{"role":"user","content":"你好"}]}
 ```
 
-失败时 `token_count` 为空，并写入错误码和错误信息：
+失败时 `prompt_tokens` 为空，并写入错误码和错误信息：
 
 ```text
 2026-08-25 15:30:15.126|span-123|request-456|glm-5.2|82||queue_full|tokenizer queue is full|429|0.00|0.00|1.28
@@ -105,7 +105,7 @@ curl http://127.0.0.1:8080/tokenizer \
 成功响应为 JSON 对象：
 
 ```json
-{"token_count": 18}
+{"prompt_tokens": 18}
 ```
 
 工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。

@@ -99,8 +99,8 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="MaaS Tokenizer", lifespan=lifespan)
 
 
-class TokenCountResponse(BaseModel):
-    token_count: int
+class PromptTokensResponse(BaseModel):
+    prompt_tokens: int
 
 
 class ErrorResponse(BaseModel):
@@ -163,7 +163,7 @@ async def tokenizer_access_log(request: Request, call_next):
     request.state.request_id = request.headers.get("X-Request-Id", "")
     request.state.content_length = request.headers.get("Content-Length", "")
     request.state.model = ""
-    request.state.token_count = None
+    request.state.prompt_tokens = None
     request.state.error_code = ""
     request.state.error_message = ""
     request.state.queue_wait_ms = 0.0
@@ -183,7 +183,7 @@ async def tokenizer_access_log(request: Request, call_next):
             request_id=request.state.request_id,
             model=request.state.model,
             content_length=request.state.content_length,
-            token_count=request.state.token_count,
+            prompt_tokens=request.state.prompt_tokens,
             error_code=request.state.error_code,
             error_message=request.state.error_message,
             http_status=response.status_code,
@@ -198,7 +198,7 @@ async def tokenizer_access_log(request: Request, call_next):
 
 @app.post(
     "/tokenizer",
-    response_model=TokenCountResponse,
+    response_model=PromptTokensResponse,
     responses={
         status: {"model": ErrorResponse}
         for status in (400, 404, 422, 429, 500, 501)
@@ -209,7 +209,7 @@ async def token_count(
     request: Request,
     service: TokenCountService = Depends(get_token_count_service),
     scheduler: SerialScheduler = Depends(get_scheduler),
-) -> TokenCountResponse:
+) -> PromptTokensResponse:
     model = request_body.get("model")
     request.state.model = model if isinstance(model, str) else ""
     access_log_config: AccessLogConfig = request.app.state.access_log_config
@@ -223,8 +223,8 @@ async def token_count(
         result = await scheduler.submit(lambda: service.count(request_body))
         request.state.queue_wait_ms = result.queue_wait_ms
         request.state.process_ms = result.process_ms
-        request.state.token_count = result.value
-        return TokenCountResponse(token_count=result.value)
+        request.state.prompt_tokens = result.value
+        return PromptTokensResponse(prompt_tokens=result.value)
     except QueueFullError as error:
         _capture_error(request, error, "queue_full")
         raise _api_error(

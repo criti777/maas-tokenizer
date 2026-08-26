@@ -36,7 +36,7 @@ class FixedService:
         return 18
 
 
-def test_token_count_endpoint_returns_object_and_logs_access(client) -> None:
+def test_token_count_endpoint_returns_prompt_tokens_and_logs_access(client) -> None:
     test_client, log_path = client
     app.dependency_overrides[get_token_count_service] = lambda: FixedService()
     response = test_client.post(
@@ -49,7 +49,7 @@ def test_token_count_endpoint_returns_object_and_logs_access(client) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json() == {"token_count": 18}
+    assert response.json() == {"prompt_tokens": 18}
     log_line = log_path.read_text(encoding="utf-8").strip()
     fields = log_line.split("|")
     assert len(fields) == 12

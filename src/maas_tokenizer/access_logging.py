@@ -88,7 +88,7 @@ class AccessRecord:
     request_id: str
     model: str
     content_length: str | int | None
-    token_count: int | None
+    prompt_tokens: int | None
     error_code: str
     error_message: str
     http_status: int
@@ -140,7 +140,7 @@ def log_access(logger: logging.Logger, record: AccessRecord) -> None:
         record.request_id,
         record.model,
         record.content_length,
-        record.token_count,
+        record.prompt_tokens,
         record.error_code,
         record.error_message,
         record.http_status,
