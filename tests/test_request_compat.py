@@ -39,7 +39,8 @@ def test_thinking_source_fills_compatibility_union(source: dict) -> None:
     }
     assert request == original
     assert normalized is not request
-    assert normalized["messages"] is not request["messages"]
+    assert normalized["messages"] is request["messages"]
+    assert normalized["messages"][0]["content"] is request["messages"][0]["content"]
 
 
 def test_reasoning_effort_none_fills_disabled_thinking_union() -> None:
@@ -67,7 +68,7 @@ def test_request_without_compatibility_fields_is_only_copied() -> None:
 
     assert normalized == request
     assert normalized is not request
-    assert normalized["messages"] is not request["messages"]
+    assert normalized["messages"] is request["messages"]
 
 
 @pytest.mark.parametrize(
@@ -155,25 +156,33 @@ def test_prefix_fills_top_level_continuation_fields() -> None:
     assert normalized["add_generation_prompt"] is False
     assert normalized["messages"][-1]["prefix"] is True
     assert normalized["messages"][-1]["custom"] == "kept"
+    assert normalized["messages"] is request["messages"]
     assert request == original
 
 
 def test_top_level_continuation_fields_fill_prefix() -> None:
-    normalized = normalize_compatibility_fields(
-        {
-            "model": "glm-5.2",
-            "messages": [
-                {"role": "user", "content": "question"},
-                {"role": "assistant", "content": "answer prefix"},
-            ],
-            "continue_final_message": True,
-            "add_generation_prompt": False,
-        }
-    )
+    request = {
+        "model": "glm-5.2",
+        "messages": [
+            {"role": "user", "content": "question"},
+            {"role": "assistant", "content": "answer prefix"},
+        ],
+        "continue_final_message": True,
+        "add_generation_prompt": False,
+    }
+    normalized = normalize_compatibility_fields(request)
 
     assert normalized["continue_final_message"] is True
     assert normalized["add_generation_prompt"] is False
     assert normalized["messages"][-1]["prefix"] is True
+    assert normalized["messages"] is not request["messages"]
+    assert normalized["messages"][0] is request["messages"][0]
+    assert normalized["messages"][-1] is not request["messages"][-1]
+    assert (
+        normalized["messages"][-1]["content"]
+        is request["messages"][-1]["content"]
+    )
+    assert "prefix" not in request["messages"][-1]
 
 
 def test_existing_continuation_union_remains_consistent() -> None:

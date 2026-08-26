@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping
-from copy import deepcopy
 from typing import Any
 
 from .errors import RequestProcessingError
@@ -24,7 +23,7 @@ def normalize_compatibility_fields(
     request: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Return a copied request with strict Thinking and continuation unions."""
-    normalized = deepcopy(dict(request))
+    normalized = dict(request)
     _normalize_thinking(normalized)
     _normalize_continuation(normalized)
     return normalized
@@ -102,7 +101,12 @@ def _normalize_continuation(request: dict[str, Any]) -> None:
 
     request["continue_final_message"] = True
     request["add_generation_prompt"] = False
-    final["prefix"] = True
+    if not final_prefix:
+        copied_messages = list(messages)
+        copied_final = dict(final)
+        copied_final["prefix"] = True
+        copied_messages[-1] = copied_final
+        request["messages"] = copied_messages
 
 
 def _require_bool(field: str, value: Any) -> bool:
