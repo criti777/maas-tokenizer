@@ -1,0 +1,32 @@
+{
+  "files": {
+    "LICENSE": {
+      "sha256": "20c797ce19af0c17de52c6afb144644768a591c521655f5ebf5712c9850f2887",
+      "size": 3065
+    },
+    "config.json": {
+      "sha256": "9710e121a58d03ac92c8d6da287a19541994319afbbe6d6202af001ffd379213",
+      "size": 7006
+    },
+    "encoding_k3.py": {
+      "sha256": "49ff03305fdc4be26867972788d36150b67f8a9e852e62bb7959d87482223676",
+      "size": 26304
+    },
+    "tiktoken.model": {
+      "sha256": "b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103",
+      "size": 2795286
+    },
+    "tokenization_kimi.py": {
+      "sha256": "f28ea66e2d862a2a5814970b2ce40c2f7d8296ff09aed90a7e7def689b906944",
+      "size": 16145
+    },
+    "tokenizer_config.json": {
+      "sha256": "5d0803c94db9cd78763499e0956c95fd5a225c14a727e5a6cf5db3f96f010a6e",
+      "size": 3478
+    }
+  },
+  "profile_id": "kimi-k3",
+  "repository": "moonshotai/Kimi-K3",
+  "revision": "a590ce090cb049c93a33dfe8c208ec652aa20503",
+  "schema_version": 1
+}

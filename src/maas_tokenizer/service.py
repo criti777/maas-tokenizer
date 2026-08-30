@@ -111,11 +111,7 @@ class TokenCountService:
             )
         try:
             renderer = self._renderer_for(profile)
-            rendered = renderer.render(parsed)
-            token_ids = renderer.encoder.encode(
-                rendered.text,
-                add_special_tokens=rendered.add_special_tokens,
-            )
+            token_ids = renderer.encode(parsed)
         except UnsupportedMultimodalError as error:
             raise ProcessorRequiredError(str(error)) from error
         return len(token_ids)

@@ -83,3 +83,23 @@ def test_prefix_matches_vllm_continuation_fields() -> None:
     )
 
     assert from_xds == from_vllm
+
+
+def test_service_delegates_complete_encoding_to_renderer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class EncodeOnlyRenderer:
+        def encode(self, parsed: object) -> list[int]:
+            assert getattr(parsed, "model") == "glm-5.2"
+            return [1, 2, 3, 4]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(
+        service,
+        "_renderer_for",
+        lambda _profile: EncodeOnlyRenderer(),
+    )
+
+    assert service.count(
+        {"model": "glm-5.2", "messages": [{"role": "user", "content": "你好"}]}
+    ) == 4

@@ -9,13 +9,14 @@
 - `deepseek-v4`
   - aliases: `DeepSeek-V4-Flash-0731`, `DeepSeek-V4-Pro-0813`
 - `kimi-k2.6`
+- `kimi-k3`
 - `glm-5.1`
 - `glm-5.2`
 - `glm-5.3-flash`
 - `minimax-m2.7`
 - `minimax-m3`
 
-模型资产固定在 `model_assets/<model>/`，包括 tokenizer、chat template 和必要配置，不包括权重。`models/profiles.json` 负责把请求中的模型名统一路由到对应资产和 renderer。DeepSeek V3.2/V4 使用从 vLLM 提取的专用路径，其余模型使用固定的 Hugging Face chat-template 路径。
+模型资产固定在 `model_assets/<model>/`，包括 tokenizer、chat template 和必要配置，不包括权重。`models/profiles.json` 负责把请求中的模型名统一路由到对应资产和 renderer。DeepSeek V3.2/V4 使用从 vLLM 提取的专用路径；Kimi K3 使用官方 Python XTML 分段渲染；其他模型使用固定的 Hugging Face chat-template 路径。
 
 ## 安装与启动
 
@@ -111,7 +112,7 @@ curl http://127.0.0.1:8080/tokenizer \
 {"prompt_tokens": 18}
 ```
 
-工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。
+工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 和 Kimi K3 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。
 
 错误响应统一为仅含错误码和错误消息的 JSON 对象：
 
@@ -128,7 +129,7 @@ curl http://127.0.0.1:8080/tokenizer \
 - `404`：模型未登记；
 - `422`：请求体不是合法 JSON/对象；
 - `501`：该多模态请求需要实际 processor；
-- `429`：Pod 等待队列已满或排队超过 2 秒；
+- `429`：Pod 等待队列已满或排队超过 200 毫秒（默认值）；
 - `500`：本地模型资产完整性异常或内部错误。
 
 ## 代码链路
@@ -141,6 +142,7 @@ src/maas_tokenizer/api.py
   -> renderers.py
        -> vendor/vllm/extracted/（vLLM 规范化/专用 renderer）
        -> AutoTokenizer（模板渲染）+ Gigatoken（encode）
+       -> Kimi K3 官方 XTML segments + 分段 encode
   -> len(token_ids)
 ```
 
@@ -149,10 +151,10 @@ src/maas_tokenizer/api.py
 - `access_logging.py`：轮转文件访问日志；
 - `run_logging.py`：服务运行日志、异常栈和 Uvicorn 文件日志；
 - `service.py`：统一处理流程、模型级懒加载和线程安全缓存；
-- `registry.py`：严格解析九个固定 profile，不做未知模型回退；
+- `registry.py`：严格解析十个固定 profile，不做未知模型回退；
 - `assets.py`：加载前检查所需本地资产；
 - `protocol.py`：OpenAI 风格请求结构；
-- `renderers.py`：按 profile 分派 HF、DeepSeek V3.2 或 DeepSeek V4 路径；
+- `renderers.py`：按 profile 分派 HF、DeepSeek V3.2、DeepSeek V4 或 Kimi K3 路径；
 - `vendor/vllm/extracted/`：从固定 vLLM 路径提取的必要文本处理代码；
 - `model_assets/`：每个模型各自的 tokenizer/template/config；
 - `tests/`：API、缓存、模型渲染、特殊路径和打包边界测试。
@@ -177,7 +179,7 @@ src/maas_tokenizer/api.py
 .venv/bin/pytest --model glm-5.2
 ```
 
-验证全部九个 profile 并检查流水线覆盖率门禁：
+验证全部十个 profile 并检查流水线覆盖率门禁：
 
 ```bash
 .venv/bin/pytest --model all \

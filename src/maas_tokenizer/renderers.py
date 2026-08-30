@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Lock
@@ -15,11 +16,14 @@ from vendor.vllm.extracted.deepseek_v32_encoding import encode_messages as encod
 from vendor.vllm.extracted.deepseek_v4_encoding import encode_messages as encode_v4
 from vendor.vllm.extracted.hf_renderer import render_chat
 
-from .encoders import GigaTokenEncoder, TokenEncoder
+from .encoders import GigaTokenEncoder, TokenEncoder, TokenIds
+from .errors import RequestProcessingError
 from .registry import ModelProfile
 
 
 _REMOTE_CODE_LOCK = Lock()
+_REMOTE_MODULE_CACHE = TemporaryDirectory(prefix="maas-tokenizer-")
+_K3_THINKING_EFFORTS = {"low", "high", "max"}
 
 
 @dataclass(frozen=True)
@@ -32,7 +36,34 @@ class Renderer(Protocol):
     template_tokenizer: Any
     encoder: TokenEncoder
 
-    def render(self, parsed: Any) -> RenderedPrompt: ...
+    def encode(self, parsed: Any) -> TokenIds: ...
+
+
+def _encode_rendered(renderer: Any, parsed: Any) -> TokenIds:
+    rendered = renderer.render(parsed)
+    return renderer.encoder.encode(
+        rendered.text,
+        add_special_tokens=rendered.add_special_tokens,
+    )
+
+
+def _load_tokenizer(path: Path, *, trust_remote_code: bool) -> Any:
+    if not trust_remote_code:
+        return AutoTokenizer.from_pretrained(
+            path, local_files_only=True, trust_remote_code=False
+        )
+
+    import transformers.dynamic_module_utils as dynamic_modules
+
+    with _REMOTE_CODE_LOCK:
+        original = dynamic_modules.HF_MODULES_CACHE
+        dynamic_modules.HF_MODULES_CACHE = _REMOTE_MODULE_CACHE.name
+        try:
+            return AutoTokenizer.from_pretrained(
+                path, local_files_only=True, trust_remote_code=True
+            )
+        finally:
+            dynamic_modules.HF_MODULES_CACHE = original
 
 
 class HFRenderer:
@@ -50,23 +81,9 @@ class HFRenderer:
 
     @classmethod
     def from_assets(cls, path: Path, profile: ModelProfile) -> "HFRenderer":
-        if profile.trust_remote_code:
-            import transformers.dynamic_module_utils as dynamic_modules
-
-            with _REMOTE_CODE_LOCK:
-                original = dynamic_modules.HF_MODULES_CACHE
-                with TemporaryDirectory(prefix="maas-tokenizer-") as cache:
-                    dynamic_modules.HF_MODULES_CACHE = cache
-                    try:
-                        tokenizer = AutoTokenizer.from_pretrained(
-                            path, local_files_only=True, trust_remote_code=True
-                        )
-                    finally:
-                        dynamic_modules.HF_MODULES_CACHE = original
-        else:
-            tokenizer = AutoTokenizer.from_pretrained(
-                path, local_files_only=True, trust_remote_code=False
-            )
+        tokenizer = _load_tokenizer(
+            path, trust_remote_code=profile.trust_remote_code
+        )
         content_format = "openai" if profile.capabilities.get("content_parts") else None
         return cls(
             tokenizer,
@@ -95,6 +112,9 @@ class HFRenderer:
         )
         return RenderedPrompt(rendered, parsed.add_special_tokens)
 
+    def encode(self, parsed: Any) -> TokenIds:
+        return _encode_rendered(self, parsed)
+
 
 class DeepSeekV32Renderer:
     def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
@@ -113,6 +133,9 @@ class DeepSeekV32Renderer:
             drop_thinking=bool(conversation and conversation[-1]["role"] == "user"),
         )
         return RenderedPrompt(text, False)
+
+    def encode(self, parsed: Any) -> TokenIds:
+        return _encode_rendered(self, parsed)
 
 
 class DeepSeekV4Renderer:
@@ -141,10 +164,76 @@ class DeepSeekV4Renderer:
         )
         return RenderedPrompt(text, False)
 
+    def encode(self, parsed: Any) -> TokenIds:
+        return _encode_rendered(self, parsed)
+
+
+class KimiK3Renderer:
+    """Encode K3's trusted XTML controls separately from untrusted text."""
+
+    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
+        self.template_tokenizer = template_tokenizer
+        self.encoder = encoder
+        package = template_tokenizer.__class__.__module__.rsplit(".", 1)[0]
+        self._build_chat_segments = import_module(
+            f"{package}.encoding_k3"
+        ).build_chat_segments
+        self._special_tokens = tuple(template_tokenizer.special_tokens)
+
+    @classmethod
+    def from_assets(cls, path: Path, profile: ModelProfile) -> "KimiK3Renderer":
+        tokenizer = _load_tokenizer(
+            path, trust_remote_code=profile.trust_remote_code
+        )
+        return cls(tokenizer, GigaTokenEncoder.from_assets(path))
+
+    def encode(self, parsed: Any) -> TokenIds:
+        kwargs = parsed.template_kwargs(parsed.tools)
+        enable_thinking = kwargs.pop("enable_thinking", None)
+        if enable_thinking is not None:
+            kwargs.setdefault("thinking", enable_thinking)
+
+        reasoning_effort = kwargs.pop("reasoning_effort", None)
+        if reasoning_effort == "none":
+            kwargs.setdefault("thinking", False)
+        elif reasoning_effort is not None:
+            kwargs.setdefault("thinking_effort", reasoning_effort)
+
+        thinking_effort = kwargs.setdefault("thinking_effort", "max")
+        if thinking_effort not in _K3_THINKING_EFFORTS:
+            raise RequestProcessingError(
+                "Kimi K3 thinking_effort must be one of low, high, max"
+            )
+        thinking = kwargs.pop("thinking", True)
+        segments = self._build_chat_segments(
+            parsed.messages,
+            thinking=thinking,
+            **kwargs,
+        )
+
+        token_ids: list[int] = []
+        for segment in segments:
+            if segment.allow_special or not any(
+                token in segment.text for token in self._special_tokens
+            ):
+                token_ids.extend(
+                    self.encoder.encode(segment.text, add_special_tokens=False)
+                )
+            else:
+                token_ids.extend(
+                    self.template_tokenizer.encode(
+                        segment.text,
+                        allow_special_tokens=False,
+                    )
+                )
+        return token_ids
+
 
 def build_renderer(profile: ModelProfile, asset_path: Path) -> Renderer:
     if profile.renderer == "hf":
         return HFRenderer.from_assets(asset_path, profile)
+    if profile.renderer == "kimi_k3":
+        return KimiK3Renderer.from_assets(asset_path, profile)
     tokenizer = AutoTokenizer.from_pretrained(asset_path, local_files_only=True)
     encoder = GigaTokenEncoder.from_assets(asset_path)
     if profile.renderer == "deepseek_v32":

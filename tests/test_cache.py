@@ -1,27 +1,13 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Lock
-from types import SimpleNamespace
-
 import pytest
 
 import maas_tokenizer.service as service_module
 from maas_tokenizer.service import TokenCountService
-from maas_tokenizer.renderers import RenderedPrompt
-
-
-class FixedEncoder:
-    def encode(self, text: str, *, add_special_tokens: bool) -> list[int]:
-        assert text == "rendered"
-        assert add_special_tokens is False
-        return [1, 2, 3]
-
-
 class FixedRenderer:
-    encoder = FixedEncoder()
-
-    def render(self, parsed: object) -> RenderedPrompt:
-        return RenderedPrompt("rendered", False)
+    def encode(self, parsed: object) -> list[int]:
+        return [1, 2, 3]
 
 
 def test_concurrent_first_load_builds_renderer_once(monkeypatch: pytest.MonkeyPatch) -> None:

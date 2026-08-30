@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .errors import UnknownModelError
 
 
-RendererName = Literal["hf", "deepseek_v32", "deepseek_v4"]
+RendererName = Literal["hf", "deepseek_v32", "deepseek_v4", "kimi_k3"]
 
 
 class ModelProfile(BaseModel):

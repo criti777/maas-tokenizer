@@ -42,6 +42,16 @@
     "capabilities": {"tools": true, "thinking": true, "content_parts": true}
   },
   {
+    "profile_id": "kimi-k3",
+    "aliases": [],
+    "repository": "moonshotai/Kimi-K3",
+    "revision": "a590ce090cb049c93a33dfe8c208ec652aa20503",
+    "renderer": "kimi_k3",
+    "trust_remote_code": true,
+    "asset_manifest": "models/manifests/kimi-k3.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": true}
+  },
+  {
     "profile_id": "glm-5.1",
     "aliases": [],
     "repository": "zai-org/GLM-5.1",

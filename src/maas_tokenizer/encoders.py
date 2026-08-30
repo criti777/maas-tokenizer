@@ -28,7 +28,7 @@ class GigaTokenEncoder:
         return cls(gt.Tokenizer(str(asset_path)))
 
     def encode(self, text: str, *, add_special_tokens: bool) -> TokenIds:
-        # The seven pinned tokenizers have no encode-time post-processor, so
+        # The string-rendered tokenizers have no encode-time post-processor, so
         # add_special_tokens=True and False produce the same IDs. Model tests
         # lock that invariant against each Hugging Face tokenizer.
         _ = add_special_tokens

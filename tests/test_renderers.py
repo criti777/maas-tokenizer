@@ -12,6 +12,15 @@ class _UnusedEncoder:
         raise AssertionError("encode is not part of this renderer test")
 
 
+class _RecordingEncoder:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, bool]] = []
+
+    def encode(self, text: str, *, add_special_tokens: bool) -> list[int]:
+        self.calls.append((text, add_special_tokens))
+        return [10, 20, 30]
+
+
 @pytest.mark.parametrize(
     ("thinking", "expected"),
     [(True, "enabled"), (False, "disabled")],
@@ -44,3 +53,28 @@ def test_hf_renderer_maps_boolean_thinking_to_named_mode(
     renderer.render(parsed)
 
     assert captured["thinking_mode"] == expected
+
+
+def test_hf_renderer_encode_preserves_string_rendering_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        renderers,
+        "render_chat",
+        lambda **_kwargs: (None, "rendered prompt", None),
+    )
+    encoder = _RecordingEncoder()
+    renderer = HFRenderer(SimpleNamespace(), encoder)
+    parsed = SimpleNamespace(
+        messages=[],
+        tools=None,
+        chat_template=None,
+        chat_template_content_format="auto",
+        add_special_tokens=True,
+        template_kwargs=lambda _tools: {},
+    )
+
+    token_ids = renderer.encode(parsed)
+
+    assert token_ids == [10, 20, 30]
+    assert encoder.calls == [("rendered prompt", True)]

@@ -16,6 +16,7 @@ def test_registry_contains_exact_supported_profiles() -> None:
         "deepseek-v3.2",
         "deepseek-v4",
         "kimi-k2.6",
+        "kimi-k3",
         "glm-5.1",
         "glm-5.2",
         "glm-5.3-flash",
@@ -42,6 +43,7 @@ def test_registry_rejects_unknown_model() -> None:
         ("zai-org/GLM-5.3-Flash", "glm-5.3-flash"),
         ("minimaxai/minimax-m2.7", "minimax-m2.7"),
         ("MiniMaxAI/MiniMax-M3", "minimax-m3"),
+        ("moonshotai/Kimi-K3", "kimi-k3"),
     ],
 )
 def test_registry_resolves_model_aliases_case_insensitively(
