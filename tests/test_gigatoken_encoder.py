@@ -17,7 +17,9 @@ from maas_tokenizer.renderers import build_renderer
         pytest.param("kimi-k2.6", marks=pytest.mark.model("kimi-k2.6")),
         pytest.param("glm-5.1", marks=pytest.mark.model("glm-5.1")),
         pytest.param("glm-5.2", marks=pytest.mark.model("glm-5.2")),
+        pytest.param("glm-5.3-flash", marks=pytest.mark.model("glm-5.3-flash")),
         pytest.param("minimax-m2.7", marks=pytest.mark.model("minimax-m2.7")),
+        pytest.param("minimax-m3", marks=pytest.mark.model("minimax-m3")),
     ],
 )
 @pytest.mark.parametrize("add_special_tokens", [False, True])

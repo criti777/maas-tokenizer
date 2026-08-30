@@ -19,7 +19,12 @@
   },
   {
     "profile_id": "deepseek-v4",
-    "aliases": [],
+    "aliases": [
+      "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "DeepSeek-V4-Flash-0731",
+      "DeepSeek-V4-Pro-0813"
+    ],
     "repository": "deepseek-ai/DeepSeek-V4-Flash",
     "revision": "60d8d70770c6776ff598c94bb586a859a38244f1",
     "renderer": "deepseek_v4",
@@ -61,6 +66,25 @@
     "revision": "d494266a4affc0d2995ba1fa35c8481cbd84294b",
     "renderer": "hf",
     "asset_manifest": "models/manifests/minimax-m2.7.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "glm-5.3-flash",
+    "aliases": [],
+    "repository": "zai-org/GLM-5.3-Flash",
+    "revision": "04c4e9e95c5da8862dced7e5056455116f83a7e0",
+    "renderer": "hf",
+    "asset_manifest": "models/manifests/glm-5.3-flash.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
+    "profile_id": "minimax-m3",
+    "aliases": [],
+    "repository": "MiniMaxAI/MiniMax-M3",
+    "revision": "f0e1c1e04d40177e4673a22097036854f536e9c0",
+    "renderer": "hf",
+    "template_thinking_mode": true,
+    "asset_manifest": "models/manifests/minimax-m3.json",
     "capabilities": {"tools": true, "thinking": true, "content_parts": false}
   }
 ]

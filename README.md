@@ -7,10 +7,13 @@
 - `deepseek-v3`
 - `deepseek-v3.2`
 - `deepseek-v4`
+  - aliases: `DeepSeek-V4-Flash-0731`, `DeepSeek-V4-Pro-0813`
 - `kimi-k2.6`
 - `glm-5.1`
 - `glm-5.2`
+- `glm-5.3-flash`
 - `minimax-m2.7`
+- `minimax-m3`
 
 模型资产固定在 `model_assets/<model>/`，包括 tokenizer、chat template 和必要配置，不包括权重。`models/profiles.json` 负责把请求中的模型名统一路由到对应资产和 renderer。DeepSeek V3.2/V4 使用从 vLLM 提取的专用路径，其余模型使用固定的 Hugging Face chat-template 路径。
 
@@ -146,7 +149,7 @@ src/maas_tokenizer/api.py
 - `access_logging.py`：轮转文件访问日志；
 - `run_logging.py`：服务运行日志、异常栈和 Uvicorn 文件日志；
 - `service.py`：统一处理流程、模型级懒加载和线程安全缓存；
-- `registry.py`：严格解析七个固定模型，不做未知模型回退；
+- `registry.py`：严格解析九个固定 profile，不做未知模型回退；
 - `assets.py`：加载前检查所需本地资产；
 - `protocol.py`：OpenAI 风格请求结构；
 - `renderers.py`：按 profile 分派 HF、DeepSeek V3.2 或 DeepSeek V4 路径；
@@ -174,7 +177,7 @@ src/maas_tokenizer/api.py
 .venv/bin/pytest --model glm-5.2
 ```
 
-验证全部七个模型并检查流水线覆盖率门禁：
+验证全部九个 profile 并检查流水线覆盖率门禁：
 
 ```bash
 .venv/bin/pytest --model all \

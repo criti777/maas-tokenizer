@@ -1,0 +1,28 @@
+{
+  "files": {
+    "chat_template.jinja": {
+      "sha256": "34d5ee66b12fa6446cdae131c352b8f68cd85369e0e6fda115583805fada3891",
+      "size": 10644
+    },
+    "config.json": {
+      "sha256": "bb8f01c42cb92a52ca72e65afb4d5bd8d11aef083cd210e8de25dfb904f23e9f",
+      "size": 69416
+    },
+    "generation_config.json": {
+      "sha256": "230c30609ecbbb9e6583bedde8e7bdda0c6eb8fe5fad0eaeb3d1b293d751cb4f",
+      "size": 194
+    },
+    "tokenizer.json": {
+      "sha256": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+      "size": 20217442
+    },
+    "tokenizer_config.json": {
+      "sha256": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+      "size": 761
+    }
+  },
+  "profile_id": "glm-5.3-flash",
+  "repository": "zai-org/GLM-5.3-Flash",
+  "revision": "04c4e9e95c5da8862dced7e5056455116f83a7e0",
+  "schema_version": 1
+}

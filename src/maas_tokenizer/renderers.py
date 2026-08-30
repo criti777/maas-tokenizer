@@ -41,10 +41,12 @@ class HFRenderer:
         template_tokenizer: Any,
         encoder: TokenEncoder,
         content_format: str | None = None,
+        template_thinking_mode: bool = False,
     ) -> None:
         self.template_tokenizer = template_tokenizer
         self.encoder = encoder
         self.content_format = content_format
+        self.template_thinking_mode = template_thinking_mode
 
     @classmethod
     def from_assets(cls, path: Path, profile: ModelProfile) -> "HFRenderer":
@@ -70,16 +72,26 @@ class HFRenderer:
             tokenizer,
             GigaTokenEncoder.from_assets(path),
             content_format,
+            profile.template_thinking_mode,
         )
 
     def render(self, parsed: Any) -> RenderedPrompt:
+        template_kwargs = parsed.template_kwargs(parsed.tools)
+        if self.template_thinking_mode:
+            thinking = template_kwargs.get(
+                "thinking", template_kwargs.get("enable_thinking")
+            )
+            if isinstance(thinking, bool):
+                template_kwargs["thinking_mode"] = (
+                    "enabled" if thinking else "disabled"
+                )
         _, rendered, _ = render_chat(
             tokenizer=self.template_tokenizer,
             messages=parsed.messages,
             tools=parsed.tools,
             chat_template=parsed.chat_template,
             content_format=self.content_format or parsed.chat_template_content_format,
-            template_kwargs=parsed.template_kwargs(parsed.tools),
+            template_kwargs=template_kwargs,
         )
         return RenderedPrompt(rendered, parsed.add_special_tokens)
 
