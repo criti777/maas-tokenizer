@@ -135,6 +135,135 @@ def test_non_object_chat_template_kwargs_are_rejected_when_normalizing() -> None
         )
 
 
+@pytest.mark.parametrize(
+    ("thinking", "expected"),
+    [
+        ({}, True),
+        ({"type": "enabled"}, True),
+        ({"type": "disabled"}, False),
+    ],
+)
+def test_object_thinking_is_normalized_to_boolean_union(
+    thinking: dict, expected: bool
+) -> None:
+    request = {"model": "glm-5.2", "messages": [], "thinking": thinking}
+
+    normalized = normalize_compatibility_fields(request)
+
+    assert normalized["thinking"] is expected
+    assert normalized["chat_template_kwargs"]["thinking"] is expected
+    assert normalized["chat_template_kwargs"]["enable_thinking"] is expected
+    assert request["thinking"] is thinking
+
+
+@pytest.mark.parametrize("thinking", [None, {"type": "auto"}])
+def test_unspecified_object_thinking_preserves_model_default(thinking: object) -> None:
+    normalized = normalize_compatibility_fields(
+        {"model": "glm-5.2", "messages": [], "thinking": thinking}
+    )
+
+    assert normalized["thinking"] is thinking
+    assert "chat_template_kwargs" not in normalized
+
+
+def test_top_level_legacy_enable_thinking_is_normalized() -> None:
+    normalized = normalize_compatibility_fields(
+        {"model": "glm-5.2", "messages": [], "enable_thinking": False}
+    )
+
+    assert normalized["thinking"] is False
+    assert normalized["enable_thinking"] is False
+    assert normalized["chat_template_kwargs"] == {
+        "thinking": False,
+        "enable_thinking": False,
+    }
+
+
+def test_auto_abstains_when_an_explicit_switch_is_present() -> None:
+    normalized = normalize_compatibility_fields(
+        {
+            "model": "glm-5.2",
+            "messages": [],
+            "thinking": {"type": "auto"},
+            "enable_thinking": True,
+        }
+    )
+
+    assert normalized["thinking"] is True
+    assert normalized["chat_template_kwargs"]["enable_thinking"] is True
+
+
+def test_object_clear_thinking_is_copied_to_top_level() -> None:
+    thinking = {"type": "enabled", "clear_thinking": True}
+    normalized = normalize_compatibility_fields(
+        {"model": "glm-5.2", "messages": [], "thinking": thinking}
+    )
+
+    assert normalized["clear_thinking"] is True
+    assert thinking == {"type": "enabled", "clear_thinking": True}
+
+
+def test_glm_minimal_effort_policy_forces_thinking_disabled() -> None:
+    normalized = normalize_compatibility_fields(
+        {
+            "model": "glm-5.2",
+            "messages": [],
+            "thinking": {"type": "enabled"},
+            "reasoning_effort": "minimal",
+        },
+        minimal_disables_thinking=True,
+    )
+
+    assert normalized["thinking"] is False
+    assert normalized["chat_template_kwargs"]["enable_thinking"] is False
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ({"thinking": "enabled"}, "thinking must be a boolean, object, or null"),
+        ({"thinking": []}, "thinking must be a boolean, object, or null"),
+        (
+            {"thinking": {"type": None}},
+            "thinking.type must be enabled, disabled, or auto",
+        ),
+        (
+            {"thinking": {"type": []}},
+            "thinking.type must be enabled, disabled, or auto",
+        ),
+        (
+            {"thinking": {"type": "unknown"}},
+            "thinking.type must be enabled, disabled, or auto",
+        ),
+        (
+            {"thinking": {"clear_thinking": "true"}},
+            "thinking.clear_thinking must be a boolean",
+        ),
+        ({"enable_thinking": "true"}, "enable_thinking must be a boolean"),
+        ({"preserve_thinking": 1}, "preserve_thinking must be a boolean"),
+    ],
+)
+def test_invalid_extended_thinking_values_are_rejected(
+    payload: dict, message: str
+) -> None:
+    payload.update({"model": "glm-5.2", "messages": []})
+
+    with pytest.raises(RequestProcessingError, match=message):
+        normalize_compatibility_fields(payload)
+
+
+def test_object_and_legacy_thinking_conflict_is_rejected() -> None:
+    with pytest.raises(RequestProcessingError, match="conflicting thinking options"):
+        normalize_compatibility_fields(
+            {
+                "model": "glm-5.2",
+                "messages": [],
+                "thinking": {"type": "disabled"},
+                "enable_thinking": True,
+            }
+        )
+
+
 def test_prefix_fills_top_level_continuation_fields() -> None:
     request = {
         "model": "deepseek-v3.2",

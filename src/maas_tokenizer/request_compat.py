@@ -21,18 +21,37 @@ _REASONING_EFFORTS = {
 
 def normalize_compatibility_fields(
     request: Mapping[str, Any],
+    *,
+    minimal_disables_thinking: bool = False,
 ) -> dict[str, Any]:
     """Return a copied request with strict Thinking and continuation unions."""
     normalized = dict(request)
-    _normalize_thinking(normalized)
+    _normalize_thinking(
+        normalized,
+        minimal_disables_thinking=minimal_disables_thinking,
+    )
     _normalize_continuation(normalized)
     return normalized
 
 
-def _normalize_thinking(request: dict[str, Any]) -> None:
+def _normalize_thinking(
+    request: dict[str, Any],
+    *,
+    minimal_disables_thinking: bool,
+) -> None:
     values: list[bool] = []
+    clear_thinking: bool | None = None
     if "thinking" in request:
-        values.append(_require_bool("thinking", request["thinking"]))
+        thinking, clear_thinking = _parse_thinking(request["thinking"])
+        if thinking is not None:
+            values.append(thinking)
+
+    legacy_thinking = request.get("enable_thinking")
+    if legacy_thinking is not None:
+        values.append(_require_bool("enable_thinking", legacy_thinking))
+
+    if "preserve_thinking" in request:
+        _require_bool("preserve_thinking", request["preserve_thinking"])
 
     raw_kwargs = request.get("chat_template_kwargs")
     if raw_kwargs is None:
@@ -47,19 +66,55 @@ def _normalize_thinking(request: dict[str, Any]) -> None:
             values.append(_require_bool(f"chat_template_kwargs.{key}", kwargs[key]))
 
     reasoning_effort = request.get("reasoning_effort")
-    if reasoning_effort in _REASONING_EFFORTS:
+    forced_disabled = minimal_disables_thinking and reasoning_effort in {
+        "none",
+        "minimal",
+    }
+    if reasoning_effort in _REASONING_EFFORTS and not forced_disabled:
         values.append(reasoning_effort != "none")
 
     if len(set(values)) > 1:
         raise RequestProcessingError("conflicting thinking options")
-    if not values:
+    if clear_thinking is not None:
+        request["clear_thinking"] = clear_thinking
+    if not values and not forced_disabled:
         return
 
-    thinking = values[0]
+    thinking = False if forced_disabled else values[0]
     request["thinking"] = thinking
     kwargs["thinking"] = thinking
     kwargs["enable_thinking"] = thinking
     request["chat_template_kwargs"] = kwargs
+
+
+def _parse_thinking(value: Any) -> tuple[bool | None, bool | None]:
+    if value is None:
+        return None, None
+    if isinstance(value, bool):
+        return value, None
+    if not isinstance(value, Mapping):
+        raise RequestProcessingError("thinking must be a boolean, object, or null")
+
+    type_value = value.get("type", "enabled")
+    if not isinstance(type_value, str):
+        raise RequestProcessingError(
+            "thinking.type must be enabled, disabled, or auto"
+        )
+    if type_value == "auto":
+        thinking = None
+    elif type_value in {"enabled", "disabled"}:
+        thinking = type_value == "enabled"
+    else:
+        raise RequestProcessingError(
+            "thinking.type must be enabled, disabled, or auto"
+        )
+
+    clear_thinking = value.get("clear_thinking")
+    if clear_thinking is not None:
+        clear_thinking = _require_bool(
+            "thinking.clear_thinking", clear_thinking
+        )
+    return thinking, clear_thinking
 
 
 def _normalize_continuation(request: dict[str, Any]) -> None:
