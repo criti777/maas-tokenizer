@@ -78,7 +78,7 @@
 
 ## 模型专属规则
 
-为匹配参考网关，GLM-5.2 的顶层 `reasoning_effort=none/minimal` 强制得到 `False`；这个覆盖在模型已解析后执行，避免改变其他模型对 `minimal` 的现有解释。
+为匹配参考网关，GLM-5.2 的顶层 `reasoning_effort=none/minimal` 强制得到 `False`。服务先从原始请求解析 model profile，再把 `minimal_disables_thinking` 策略传给兼容规范化函数，使冲突判断直接使用 GLM-5.2 的最终语义；这样 `thinking=true + reasoning_effort=minimal` 不会被误报为冲突，而会按参考行为强制关闭。其他模型继续把 `minimal` 解释为开启。
 
 不复制以下生成期改写，因为它们不会影响输入 token：
 
@@ -108,4 +108,3 @@ LongCat 等未注册模型不增加专属分支。未来新增模型时，只在
 7. HF、DeepSeek V3.2/V4、Kimi K3 的参数传递；
 8. 未传 Thinking 时所有旧模型的固定 token 结果不变；
 9. 全模型测试与覆盖率门禁继续通过。
-
