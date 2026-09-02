@@ -94,11 +94,14 @@ class TokenCountService:
             return renderer
 
     def count(self, request: Mapping[str, Any]) -> int:
-        request_dict = normalize_compatibility_fields(request)
-        model = request_dict.get("model")
+        model = request.get("model")
         if not isinstance(model, str) or not model:
             raise RequestProcessingError("model is required")
         profile = self.registry.resolve(model)
+        request_dict = normalize_compatibility_fields(
+            request,
+            minimal_disables_thinking=profile.profile_id == "glm-5.2",
+        )
         try:
             parsed = ChatCompletionRequest.model_validate(request_dict)
         except ValidationError as error:

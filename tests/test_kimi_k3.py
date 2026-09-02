@@ -148,6 +148,20 @@ def test_kimi_k3_service_has_pinned_basic_count() -> None:
 
 
 @pytest.mark.model("kimi-k3")
+@pytest.mark.parametrize("enabled", [True, False])
+def test_kimi_k3_object_thinking_matches_boolean_form(enabled: bool) -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {
+        "model": "kimi-k3",
+        "messages": [{"role": "user", "content": "分析后回答"}],
+    }
+
+    assert service.count(
+        {**request, "thinking": {"type": "enabled" if enabled else "disabled"}}
+    ) == service.count({**request, "thinking": enabled})
+
+
+@pytest.mark.model("kimi-k3")
 def test_kimi_k3_rejects_unsupported_reasoning_effort_as_request_error() -> None:
     service = TokenCountService(assets_root=Path("model_assets"))
 

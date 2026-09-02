@@ -114,6 +114,16 @@ curl http://127.0.0.1:8080/tokenizer \
 
 工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 和 Kimi K3 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。
 
+Thinking 开关兼容布尔形式、旧字段和对象形式：
+
+```json
+{"thinking": true}
+{"enable_thinking": false}
+{"thinking": {"type": "enabled", "clear_thinking": false}}
+```
+
+对象中的 `type` 支持 `enabled`、`disabled` 和 `auto`；空对象按 `enabled` 处理，`auto` 表示不覆盖模型默认值。`clear_thinking` 和顶层 `preserve_thinking` 会继续传入聊天模板。服务会同时补齐模板常用的 `thinking` 与 `enable_thinking` 布尔参数；如果多个显式开关一真一假，则返回 `400 invalid_request`。GLM-5.2 的 `reasoning_effort` 为 `none` 或 `minimal` 时会强制关闭 Thinking。生成采样参数不影响输入 token 计数，因此服务不会改写 `temperature`、`top_p` 或 penalty 字段。
+
 错误响应统一为仅含错误码和错误消息的 JSON 对象：
 
 ```json

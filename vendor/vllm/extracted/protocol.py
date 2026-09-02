@@ -19,6 +19,8 @@ class ChatCompletionRequest(BaseModel):
     reasoning_effort: Literal[
         "none", "minimal", "low", "medium", "high", "xhigh", "max"
     ] | None = None
+    clear_thinking: bool | None = None
+    preserve_thinking: bool | None = None
     add_generation_prompt: bool = True
     continue_final_message: bool = False
     add_special_tokens: bool = False
@@ -46,6 +48,8 @@ class ChatCompletionRequest(BaseModel):
             "continue_final_message": self.continue_final_message,
             "documents": self.documents,
             "reasoning_effort": self.reasoning_effort,
+            "clear_thinking": self.clear_thinking,
+            "preserve_thinking": self.preserve_thinking,
             "tools": tools,
         }
         for key, value in defaults.items():
@@ -54,4 +58,3 @@ class ChatCompletionRequest(BaseModel):
         if self.reasoning_effort is not None and "enable_thinking" not in kwargs:
             kwargs["enable_thinking"] = self.reasoning_effort != "none"
         return kwargs
-

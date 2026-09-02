@@ -78,3 +78,36 @@ def test_hf_renderer_encode_preserves_string_rendering_path(
 
     assert token_ids == [10, 20, 30]
     assert encoder.calls == [("rendered prompt", True)]
+
+
+def test_hf_renderer_passes_thinking_auxiliary_fields_to_template(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_render_chat(**kwargs: Any) -> tuple[None, str, None]:
+        captured.update(kwargs["template_kwargs"])
+        return None, "rendered", None
+
+    monkeypatch.setattr(renderers, "render_chat", fake_render_chat)
+    renderer = HFRenderer(SimpleNamespace(), _UnusedEncoder())
+    parsed = SimpleNamespace(
+        messages=[],
+        tools=None,
+        chat_template=None,
+        chat_template_content_format="auto",
+        add_special_tokens=False,
+        template_kwargs=lambda _tools: {
+            "thinking": True,
+            "enable_thinking": True,
+            "clear_thinking": True,
+            "preserve_thinking": False,
+        },
+    )
+
+    renderer.render(parsed)
+
+    assert captured["thinking"] is True
+    assert captured["enable_thinking"] is True
+    assert captured["clear_thinking"] is True
+    assert captured["preserve_thinking"] is False

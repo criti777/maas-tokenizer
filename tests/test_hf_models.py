@@ -36,3 +36,38 @@ def test_minimax_m3_thinking_mode_changes_prompt_count() -> None:
 
     assert service.count({**request, "thinking": True}) == 178
     assert service.count({**request, "thinking": False}) == 168
+
+
+@pytest.mark.model("minimax-m3")
+@pytest.mark.parametrize("enabled", [True, False])
+def test_minimax_m3_object_thinking_matches_boolean_form(enabled: bool) -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {
+        "model": "minimax-m3",
+        "messages": [{"role": "user", "content": "分析后回答"}],
+    }
+
+    assert service.count(
+        {**request, "thinking": {"type": "enabled" if enabled else "disabled"}}
+    ) == service.count({**request, "thinking": enabled})
+
+
+@pytest.mark.model("glm-5.2")
+@pytest.mark.parametrize("reasoning_effort", ["none", "minimal"])
+def test_glm_5_2_lowest_efforts_force_thinking_disabled(
+    reasoning_effort: str,
+) -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {
+        "model": "glm-5.2",
+        "messages": [{"role": "user", "content": "请分析这个问题"}],
+    }
+    disabled = service.count({**request, "thinking": False})
+
+    assert service.count(
+        {
+            **request,
+            "thinking": {"type": "enabled"},
+            "reasoning_effort": reasoning_effort,
+        }
+    ) == disabled

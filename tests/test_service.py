@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from maas_tokenizer.errors import ProcessorRequiredError, RequestProcessingError
+from maas_tokenizer.protocol import ChatCompletionRequest
 from maas_tokenizer.service import TokenCountService
 
 
@@ -58,6 +59,30 @@ def test_top_level_thinking_matches_vllm_template_kwargs() -> None:
     )
 
     assert from_xds == from_vllm
+
+
+def test_template_kwargs_include_thinking_auxiliary_fields() -> None:
+    parsed = ChatCompletionRequest.model_validate(
+        {
+            "messages": [],
+            "clear_thinking": True,
+            "preserve_thinking": True,
+        }
+    )
+
+    kwargs = parsed.template_kwargs(None)
+
+    assert kwargs["clear_thinking"] is True
+    assert kwargs["preserve_thinking"] is True
+
+
+def test_template_kwargs_omit_unspecified_thinking_auxiliary_fields() -> None:
+    parsed = ChatCompletionRequest.model_validate({"messages": []})
+
+    kwargs = parsed.template_kwargs(None)
+
+    assert "clear_thinking" not in kwargs
+    assert "preserve_thinking" not in kwargs
 
 
 def test_prefix_matches_vllm_continuation_fields() -> None:

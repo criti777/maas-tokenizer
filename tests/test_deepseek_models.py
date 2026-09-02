@@ -61,3 +61,26 @@ def test_v4_assistant_prefix_without_eos_matches_pinned_count() -> None:
             ],
         }
     ) == 7
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        pytest.param("deepseek-v3.2", marks=pytest.mark.model("deepseek-v3.2")),
+        pytest.param("deepseek-v4", marks=pytest.mark.model("deepseek-v4")),
+    ],
+)
+@pytest.mark.parametrize("enabled", [True, False])
+def test_deepseek_object_thinking_matches_boolean_form(
+    profile: str,
+    enabled: bool,
+) -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {
+        "model": profile,
+        "messages": [{"role": "user", "content": "分析后回答"}],
+    }
+
+    assert service.count(
+        {**request, "thinking": {"type": "enabled" if enabled else "disabled"}}
+    ) == service.count({**request, "thinking": enabled})
