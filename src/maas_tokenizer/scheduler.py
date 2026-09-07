@@ -100,7 +100,10 @@ class SerialScheduler:
         self._closed = True
         while not self._queue.empty():
             job = self._queue.get_nowait()
-            assert isinstance(job, _Job)
+            if not isinstance(job, _Job):
+                raise RuntimeError(
+                    f"unexpected scheduler queue item: {type(job).__name__}"
+                )
             job.cancelled = True
             if not job.started.done():
                 job.started.cancel()
@@ -119,7 +122,10 @@ class SerialScheduler:
             try:
                 if job is _STOP:
                     return
-                assert isinstance(job, _Job)
+                if not isinstance(job, _Job):
+                    raise RuntimeError(
+                        f"unexpected scheduler queue item: {type(job).__name__}"
+                    )
                 if job.cancelled:
                     continue
                 started_at = perf_counter()

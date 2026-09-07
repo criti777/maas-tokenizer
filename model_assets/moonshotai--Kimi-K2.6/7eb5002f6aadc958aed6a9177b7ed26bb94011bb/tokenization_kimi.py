@@ -71,7 +71,8 @@ class TikTokenTokenizer(PreTrainedTokenizer):
         added_tokens_decoder: Optional[dict] = None,
         **kwargs,
     ):
-        assert os.path.isfile(vocab_file), vocab_file
+        if not os.path.isfile(vocab_file):
+            raise FileNotFoundError(vocab_file)
 
         if additional_special_tokens is None:
             additional_special_tokens = [
@@ -173,7 +174,8 @@ class TikTokenTokenizer(PreTrainedTokenizer):
             logger.warning(f"Calling super().encode with {kwargs}")
             return super().encode(text, **kwargs)
 
-        assert type(text) is str
+        if type(text) is not str:
+            raise TypeError(f"text must be str, got {type(text).__name__}")
 
         # The tiktoken tokenizer can handle <=400k chars without
         # pyo3_runtime.PanicException.

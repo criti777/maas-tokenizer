@@ -164,5 +164,5 @@ def test_v4_developer_reminder_content_blocks_and_error_paths() -> None:
         render_v4(0, [{"role": "tool", "content": "x"}], "chat")
     with pytest.raises(NotImplementedError):
         render_v4(0, [{"role": "alien", "content": "x"}], "chat")
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="Invalid thinking_mode"):
         render_v4(0, [{"role": "user", "content": "x"}], "bad")

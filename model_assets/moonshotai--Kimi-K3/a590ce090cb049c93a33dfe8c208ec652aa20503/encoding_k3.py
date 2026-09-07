@@ -616,8 +616,12 @@ def build_chat_segments(
         segments.extend(_render_tool_declare(tools))
 
     thinking_effort = kwargs.get("thinking_effort")
-    if thinking and thinking_effort is not None:
-        assert thinking_effort in _VALID_THINKING_EFFORTS, (
+    if (
+        thinking
+        and thinking_effort is not None
+        and thinking_effort not in _VALID_THINKING_EFFORTS
+    ):
+        raise ValueError(
             f"Unsupported thinking_effort={thinking_effort!r}; "
             f"supported values are {sorted(_VALID_THINKING_EFFORTS)}."
         )

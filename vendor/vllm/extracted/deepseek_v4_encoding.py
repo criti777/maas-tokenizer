@@ -207,8 +207,10 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
     Returns:
         Encoded string for this message.
     """
-    assert 0 <= index < len(messages)
-    assert thinking_mode in ["chat", "thinking"], f"Invalid thinking_mode `{thinking_mode}`"
+    if not 0 <= index < len(messages):
+        raise IndexError(f"Message index out of range: {index}")
+    if thinking_mode not in ["chat", "thinking"]:
+        raise ValueError(f"Invalid thinking_mode `{thinking_mode}`")
 
     prompt = ""
     msg = messages[index]
@@ -228,7 +230,8 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
         tool_calls = tool_calls_from_openai_format(tool_calls)
 
     # Reasoning effort prefix (only at index 0 in thinking mode with max effort)
-    assert reasoning_effort in ['max', None, 'high'], f"Invalid reasoning effort: {reasoning_effort}"
+    if reasoning_effort not in ['max', None, 'high']:
+        raise ValueError(f"Invalid reasoning effort: {reasoning_effort}")
     if index == 0 and thinking_mode == "thinking" and reasoning_effort == 'max':
         prompt += REASONING_EFFORT_MAX
 
@@ -240,7 +243,8 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
             prompt += "\n\n" + response_format_template.format(schema=to_json(response_format))
 
     elif role == "developer":
-        assert content, f"Invalid message for role `{role}`: {msg}"
+        if not content:
+            raise ValueError(f"Invalid message for role `{role}`: {msg}")
 
         content_developer = USER_SP_TOKEN
         content_developer += content
@@ -339,7 +343,10 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
     task = messages[index].get("task")
     if task is not None:
         # Task special token for internal classification tasks
-        assert task in VALID_TASKS, f"Invalid task: '{task}'. Valid tasks are: {list(VALID_TASKS)}"
+        if task not in VALID_TASKS:
+            raise ValueError(
+                f"Invalid task: '{task}'. Valid tasks are: {list(VALID_TASKS)}"
+            )
         task_sp_token = DS_TASK_SP_TOKENS[task]
 
         if task != "action":
