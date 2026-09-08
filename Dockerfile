@@ -35,6 +35,10 @@ COPY --chown=service:service model_assets/ ./model_assets/
 COPY --chown=service:service src/ ./src/
 COPY --chown=service:service vendor/ ./vendor/
 
+# 模型配置和资产：所有层级目录 700，普通文件 600
+RUN find ./models ./model_assets -type d -exec chmod 700 {} + \
+    && find ./models ./model_assets -type f -exec chmod 600 {} +
+
 USER service
 
 EXPOSE 8080
