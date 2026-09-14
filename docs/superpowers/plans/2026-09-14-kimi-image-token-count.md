@@ -45,3 +45,6 @@ failures because the old service ignored metadata. Image tests: 360 passed,
 including 320 pinned official geometry cases. Full suite with all models:
 566 passed; total coverage 92.64%, image module coverage 98.92%.
 No renderer/vendor/model asset changes, no server port, no remote push.
+# 后续简化修订
+
+用户确认改为独立图片累加：先更新回归测试，确认旧代码失败；移除图片对应关系和文本修改；更新 README；执行 --model all 全量回归。下文为首次实现的历史计划，最新行为以 README 和修订设计为准。

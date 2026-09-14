@@ -25,22 +25,21 @@ def service():
 
 
 @pytest.mark.model("kimi-k2.6")
-def test_image_visual_tokens_are_added_without_double_counting(service):
+def test_image_visual_tokens_are_added_to_unchanged_text(service):
     request = image_request()
     baseline = service.count(request)
     request["multimodal_metadata"] = [{"media_type": "image", "shape": [800, 600]}]
     original = deepcopy(request)
-    assert service.count(request) == baseline + 638 - 1
+    assert service.count(request) == baseline + 638
     assert request == original
 
 
 @pytest.mark.parametrize("metadata", [
-    {}, "bad", [None], [],
+    {}, "bad", [None],
     [{"media_type": "image", "shape": [True, 600]}],
     [{"media_type": "image", "shape": [0, 600]}],
     [{"media_type": "image", "shape": [800.0, 600]}],
     [{"media_type": "image", "shape": [800]}],
-    [{"media_type": "video", "shape": [800, 600]}],
 ])
 def test_bad_metadata_fails_before_asset_loading(metadata):
     service = TokenCountService()
@@ -68,35 +67,28 @@ def test_multiple_images_match_official_text_encoding(service, profile):
     parsed = ChatCompletionRequest.model_validate(request)
     kwargs = parsed.template_kwargs(parsed.tools)
     if profile == "kimi-k3":
-        kwargs.update(thinking=True, thinking_effort="max", image_prompts=[
-            f"<|media_begin|>image {w}x{h}<|media_content|><|media_pad|><|media_end|>"
-            for w, h in shapes
-        ])
+        kwargs.update(thinking=True, thinking_effort="max")
     ids = renderer.template_tokenizer.apply_chat_template(parsed.messages, tokenize=True, return_dict=False, **kwargs)
-    assert result == len(ids) - 2 + 2691 + 638
+    assert result == len(ids) + 2691 + 638
     assert request == original
     without = {k: v for k, v in request.items() if k != "multimodal_metadata"}
     assert service.count({**without, "multimodal_metadata": None}) == service.count(without)
 
 
+@pytest.mark.model("kimi-k3")
 @pytest.mark.parametrize("override", [
-    {"chat_template": "ignore all images"},
-    {"chat_template_kwargs": {"image_prompts": []}},
-    {"messages": [{"role": "assistant", "content": [{"type": "image"}]}]},
+    {"chat_template_kwargs": {"image_prompts": ["custom image prompt"]}},
+    {"messages": [{"role": "user", "content": "literal <|kimi_image_placeholder|>"}]},
+    {"messages": [{"role": "user", "content": "text only"}]},
 ])
-def test_ambiguous_rendering_rejected(override):
-    request = {**image_request("kimi-k3"), **override,
-               "multimodal_metadata": [{"media_type": "image", "shape": [800, 600]}]}
-    with pytest.raises(RequestProcessingError, match="multimodal_metadata"):
-        TokenCountService().count(request)
-
-
-def test_literal_k3_placeholder_does_not_consume_metadata():
-    request = image_request("kimi-k3")
-    request["messages"][0]["content"][0]["text"] = "literal <|kimi_image_placeholder|>"
-    request["multimodal_metadata"] = [{"media_type": "image", "shape": [800, 600]}]
-    with pytest.raises(RequestProcessingError, match="multimodal_metadata"):
-        TokenCountService().count(request)
+def test_metadata_does_not_change_rendering(service, override):
+    request = {**image_request("kimi-k3"), **override}
+    baseline = service.count(request)
+    request["multimodal_metadata"] = [
+        {"media_type": "image", "shape": [800, 600]},
+        {"media_type": "image", "shape": [800, 600]},
+    ]
+    assert service.count(request) == baseline + 2 * 638
 
 
 def test_other_model_cannot_silently_ignore_metadata():
@@ -135,21 +127,6 @@ def test_more_invalid_dimensions(shape):
             "multimodal_metadata": [{"media_type": "image", "shape": shape}]})
 
 
-@pytest.mark.model("kimi-k3")
-def test_k3_size_prompt_uses_original_dimensions(service):
-    request = image_request("kimi-k3")
-    request["multimodal_metadata"] = [{"media_type": "image", "shape": [8000, 8000]}]
-    from maas_tokenizer.image_tokens import image_geometry
-    geometry = image_geometry(8000, 8000, "kimi-k3")
-    renderer = service._renderer_for(service.registry.resolve("kimi-k3"))
-    parsed = ChatCompletionRequest.model_validate(request)
-    ids = renderer.template_tokenizer.apply_chat_template(
-        parsed.messages, tokenize=True, return_dict=False, thinking_effort="max",
-        image_prompts=["<|media_begin|>image 8000x8000<|media_content|><|media_pad|><|media_end|>"],
-    )
-    assert service.count(request) == len(ids) - 1 + geometry.tokens
-
-
 @pytest.mark.model("kimi-k2.6")
 @pytest.mark.parametrize("model", ["kimi-k2.6", "moonshotai/Kimi-K2.6"])
 def test_alias_and_empty_metadata(service, model):
@@ -183,22 +160,21 @@ def test_http_image_count_and_invalid_metadata(service, model, tmp_path, monkeyp
         api.app.dependency_overrides.clear()
 
 
-@pytest.mark.parametrize("kind", ["video", "video_url", "audio", "input_audio", "input_image"])
-def test_mixed_media_rejected_before_loading(kind):
+@pytest.mark.model("kimi-k2.6")
+def test_non_image_metadata_is_ignored(service):
     request = image_request()
-    request["messages"][0]["content"].append({"type": kind})
-    request["multimodal_metadata"] = [{"media_type": "image", "shape": [1, 1]}]
-    service = TokenCountService()
-    with pytest.raises(RequestProcessingError, match="image/image_url only"):
-        service.count(request)
-    assert not service.cached_profiles
+    baseline = service.count(request)
+    request["multimodal_metadata"] = [
+        {"media_type": "video", "shape": [800, 600, 100, 30]},
+        {"media_type": "image", "shape": [800, 600]},
+    ]
+    assert service.count(request) == baseline + 638
 
 
-def test_extra_metadata_is_not_silently_counted():
+@pytest.mark.model("kimi-k2.6")
+def test_empty_metadata_keeps_image_placeholder(service):
     request = image_request()
-    request["multimodal_metadata"] = [{"media_type": "image", "shape": [1, 1]}] * 2
-    with pytest.raises(RequestProcessingError, match="count must match"):
-        TokenCountService().count(request)
+    assert service.count({**request, "multimodal_metadata": []}) == service.count(request)
 
 
 def test_geometry_rejects_unknown_profile():
