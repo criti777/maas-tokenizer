@@ -112,7 +112,35 @@ curl http://127.0.0.1:8080/tokenizer \
 {"prompt_tokens": 18}
 ```
 
-工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 和 Kimi K3 可在纯文本阶段渲染媒体占位符；其他模型遇到图片、音频或视频 content part 时返回 `501 processor_required`，不会下载媒体，也不会伪造视觉 token 数量。
+工具定义、tool call、thinking/reasoning 等字段会按对应模型的固定规则进入规范化和渲染。Kimi K2.6 和 Kimi K3 默认仅渲染媒体占位符；提供下述图片元数据后可按尺寸计入视觉 token。其他模型的媒体请求仍需要 processor。
+
+### Kimi 图片尺寸计数
+
+顶层 `multimodal_metadata` 与 `messages` 并列，按消息及 content 中图片的出现顺序对应：
+
+```json
+{
+  "model": "kimi-k3",
+  "messages": [{"role": "user", "content": [
+    {"type": "text", "text": "描述图片"},
+    {"type": "image_url", "image_url": {"url": ""}}
+  ]}],
+  "multimodal_metadata": [
+    {"media_type": "image", "shape": [800, 600], "size": 2.5, "hash": "optional"}
+  ]
+}
+```
+
+- 仅支持 `kimi-k2.6` / `kimi-k3`（及对应仓库名）的 user 消息中 `image` / `image_url`。
+- `shape` 为原图 `[宽, 高]`，必须是正整数。无需 URL/base64；不联网、不读取像素。
+- 缺省或 null 保留原有文本/占位符计数；显式数组启用校验，条目数必须等于图片数。
+- `size`、`hash` 不参与计数；重复图片仍逐次计算。返回字段仍为 `prompt_tokens`。
+- 按固定官方配置缩放和补齐：patch=14、空间合并=2；K2.6 预算 16384、K3 预算 65536，单边 patch 上限均为 512。
+- 返回值包含文本、媒体标记及视觉 token；扣除被视觉内容替换的单个媒体占位。K3 额外按原始宽高渲染尺寸文本。
+- 数量/尺寸错误、混入视频音频、不支持的模型，以及自定义 `chat_template` / `image_prompts` 冲突返回 HTTP 400。K3 元数据模式不接受文字中的 `<|kimi_image_placeholder|>`，避免错配图片。
+- 这是官方默认配置下的计数；下游若改变预处理配置，应同步对齐。未提供元数据时不会自动补算图片 token。
+
+尺寸参考固定于 K2.6 `7eb5002f6aadc958aed6a9177b7ed26bb94011bb`、K3 `a590ce090cb049c93a33dfe8c208ec652aa20503`；测试包含这两个版本官方函数生成的 320 组尺寸金标结果。
 
 Thinking 开关兼容布尔形式、旧字段和对象形式：
 
@@ -202,6 +230,6 @@ src/maas_tokenizer/api.py
 
 ## 范围边界
 
-本项目只计算多模态 processor 之前的文本 token 数。它不包含数据集生成、JSONL 批处理、结果哈希、模型权重、图片下载/解码、pixel values、视觉 embedding 或模型推理。
+本项目计算文本 token，并可通过元数据计算 Kimi 图片视觉 token 数；暂不计算视频/音频 token。它不包含模型权重、图片下载/解码、pixel values、视觉 embedding 或模型推理。
 
 第三方代码与资产来源见 `THIRD_PARTY_NOTICES.md`；vendored 源文件保留原有 SPDX 声明。

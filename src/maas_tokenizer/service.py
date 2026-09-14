@@ -15,6 +15,7 @@ from vendor.vllm.extracted.chat_utils import UnsupportedMultimodalError
 
 from .assets import verify_asset_directory
 from .errors import ProcessorRequiredError, RequestProcessingError
+from .image_tokens import validate_image_metadata
 from .protocol import ChatCompletionRequest
 from .registry import ModelProfile, ModelRegistry
 from .request_compat import normalize_compatibility_fields
@@ -106,6 +107,10 @@ class TokenCountService:
             parsed = ChatCompletionRequest.model_validate(request_dict)
         except ValidationError as error:
             raise RequestProcessingError(str(error)) from error
+        images = validate_image_metadata(
+            request_dict.get("multimodal_metadata"), parsed, profile.profile_id
+        )
+        parsed = images.prepare(parsed, profile.profile_id)
         if _contains_media(parsed.messages) and not profile.capabilities.get(
             "content_parts", False
         ):
@@ -117,4 +122,4 @@ class TokenCountService:
             token_ids = renderer.encode(parsed)
         except UnsupportedMultimodalError as error:
             raise ProcessorRequiredError(str(error)) from error
-        return len(token_ids)
+        return len(token_ids) + images.adjustment

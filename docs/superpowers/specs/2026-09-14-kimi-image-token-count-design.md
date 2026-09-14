@@ -10,7 +10,7 @@
 
 顶层 multimodal_metadata 是数组。每项 media_type 必须为 image，shape 必须为两个正整数 [宽, 高]，不接受布尔值、浮点数或字符串作为尺寸。
 size、hash 及额外字段不参与计数；同一 hash 重复出现仍逐次计数。
-数组顺序与 messages 顺序及每条 content 数组中 image/image_url 出现顺序一致；数量必须相等。
+数组顺序与 messages 顺序及每条 content 数组中 image/image_url 出现顺序一致；数量必须相等。新模式仅接受 user 消息中的图片，避免工具消息重排或忽略内容造成错配。
 显式空数组仅在没有图片时有效；缺失尺寸、无效类型或数量不匹配返回请求错误，不回退为部分计数。
 提供非空 metadata 时不支持其他模型，也不允许混入视频/音频：返回明确错误，不宣称已计算完整多模态输入。
 
@@ -25,10 +25,11 @@ K2.6 的 in_patch_limit=16384；K3 为 65536。
 ## 接入位置
 
 service.count 在加载 renderer 前校验元数据及图片对应关系。
-保留 renderer 原有文本流程；有元数据时，K3 使用官方带尺寸的 image_prompts（尺寸来源按官方 processor 调用点核对），K2.6 保留原有媒体包裹标记。
+保留 renderer 原有文本流程；有元数据时，K3 使用官方带原始宽高的 image_prompts，K2.6 保留原有媒体包裹标记。官方 processor 使用 img.size，已核对。
 总数为对应渲染 token 数减去实际被替换的图片占位 token 数，再加各图片视觉 token 数。
 只扣除结构化图片对应的占位，不搜索并扣除用户普通文本中的相似标记。
 K3 有 metadata 时若用户另外设置 image_prompts，拒绝冲突输入，避免两个来源决定图片提示。
+metadata 模式拒绝自定义 chat_template；K3 同时拒绝文字内的 kimi_image_placeholder，因为官方会将它作为额外图片槽消费。这些限制均不影响无 metadata 的旧行为。
 不修改调用方原始请求，不将图片配置放入所有模型共用的模板参数。
 
 ## 测试与验收
