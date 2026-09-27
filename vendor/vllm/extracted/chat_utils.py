@@ -27,6 +27,10 @@ class UnsupportedMultimodalError(ValueError):
     pass
 
 
+class InvalidToolArgumentsError(ValueError):
+    pass
+
+
 def _normalize_part(part: Any, content_format: ContentFormat) -> Any:
     if isinstance(part, str):
         return {"type": "text", "text": part} if content_format == "openai" else part
@@ -98,7 +102,9 @@ def parse_chat_messages(
         if source["role"] == "assistant":
             if source.get("tool_calls") is not None:
                 message["tool_calls"] = copy.deepcopy(source["tool_calls"])
-            reasoning = source.get("reasoning", source.get("reasoning_content"))
+            reasoning = source.get("reasoning")
+            if reasoning is None:
+                reasoning = source.get("reasoning_content")
             if reasoning is not None:
                 message["reasoning"] = reasoning
                 message["reasoning_content"] = reasoning
@@ -138,9 +144,15 @@ def _postprocess_messages(messages: list[dict[str, Any]]) -> None:
             ):
                 raise ValueError("only assistant function tool_calls are supported")
             arguments = function.get("arguments")
-            if arguments:
-                if not isinstance(arguments, (dict, list)):
-                    parsed = json.loads(arguments)
-                    function["arguments"] = parsed if parsed is not None else {}
-            else:
+            if arguments is None or arguments == "":
                 function["arguments"] = {}
+                continue
+            if not isinstance(arguments, str):
+                raise InvalidToolArgumentsError(
+                    "assistant tool call arguments must be a JSON string"
+                )
+            try:
+                parsed = json.loads(arguments)
+            except json.JSONDecodeError:
+                parsed = {}
+            function["arguments"] = parsed if isinstance(parsed, dict) else {}

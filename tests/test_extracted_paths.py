@@ -1,6 +1,7 @@
 import pytest
 
 from vendor.vllm.extracted.chat_utils import (
+    InvalidToolArgumentsError,
     UnsupportedMultimodalError,
     parse_chat_messages,
 )
@@ -44,6 +45,106 @@ def test_chat_normalization_preserves_supported_extensions() -> None:
     assert messages[0]["tool_calls"][0]["function"]["arguments"] == {"x": 1}
     assert messages[1]["content"] == "result"
     assert messages[2]["tools"] == []
+
+
+def test_chat_normalization_falls_back_from_null_reasoning() -> None:
+    messages = parse_chat_messages(
+        [
+            {
+                "role": "assistant",
+                "content": "answer",
+                "reasoning": None,
+                "reasoning_content": "legacy reason",
+            }
+        ],
+        "openai",
+    )
+
+    assert messages[0]["reasoning"] == "legacy reason"
+    assert messages[0]["reasoning_content"] == "legacy reason"
+
+
+def test_chat_normalization_keeps_explicit_reasoning_over_legacy_field() -> None:
+    messages = parse_chat_messages(
+        [
+            {
+                "role": "assistant",
+                "content": "answer",
+                "reasoning": "current reason",
+                "reasoning_content": "legacy reason",
+            }
+        ],
+        "openai",
+    )
+
+    assert messages[0]["reasoning"] == "current reason"
+    assert messages[0]["reasoning_content"] == "current reason"
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    ["", "{bad json", "[]", '"text"', "true", "123", "null"],
+)
+def test_tool_call_argument_strings_that_are_not_objects_become_empty(
+    arguments: str,
+) -> None:
+    messages = parse_chat_messages(
+        [
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "type": "function",
+                        "function": {"name": "f", "arguments": arguments},
+                    }
+                ],
+            }
+        ],
+        "openai",
+    )
+
+    assert messages[0]["tool_calls"][0]["function"]["arguments"] == {}
+
+
+def test_missing_tool_call_arguments_become_empty() -> None:
+    messages = parse_chat_messages(
+        [
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {"type": "function", "function": {"name": "f"}},
+                ],
+            }
+        ],
+        "openai",
+    )
+
+    assert messages[0]["tool_calls"][0]["function"]["arguments"] == {}
+
+
+@pytest.mark.parametrize("arguments", [{"x": 1}, [1], True, 1])
+def test_non_string_tool_call_arguments_are_rejected(arguments: object) -> None:
+    with pytest.raises(
+        InvalidToolArgumentsError,
+        match="assistant tool call arguments must be a JSON string",
+    ):
+        parse_chat_messages(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "type": "function",
+                            "function": {"name": "f", "arguments": arguments},
+                        }
+                    ],
+                }
+            ],
+            "openai",
+        )
 
 
 @pytest.mark.parametrize(

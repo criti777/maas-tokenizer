@@ -11,7 +11,10 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from vendor.vllm.extracted.chat_utils import UnsupportedMultimodalError
+from vendor.vllm.extracted.chat_utils import (
+    InvalidToolArgumentsError,
+    UnsupportedMultimodalError,
+)
 
 from .assets import verify_asset_directory
 from .errors import ProcessorRequiredError, RequestProcessingError
@@ -102,6 +105,13 @@ class TokenCountService:
             request,
             minimal_disables_thinking=profile.profile_id == "glm-5.2",
         )
+        if profile.profile_id == "glm-5.2" and "clear_thinking" not in request_dict:
+            template_kwargs = request_dict.get("chat_template_kwargs")
+            if (
+                not isinstance(template_kwargs, Mapping)
+                or "clear_thinking" not in template_kwargs
+            ):
+                request_dict["clear_thinking"] = False
         try:
             parsed = ChatCompletionRequest.model_validate(request_dict)
         except ValidationError as error:
@@ -115,6 +125,8 @@ class TokenCountService:
         try:
             renderer = self._renderer_for(profile)
             token_ids = renderer.encode(parsed)
+        except InvalidToolArgumentsError as error:
+            raise RequestProcessingError(str(error)) from error
         except UnsupportedMultimodalError as error:
             raise ProcessorRequiredError(str(error)) from error
         return len(token_ids)

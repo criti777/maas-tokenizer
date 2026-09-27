@@ -85,6 +85,131 @@ def test_template_kwargs_omit_unspecified_thinking_auxiliary_fields() -> None:
     assert "preserve_thinking" not in kwargs
 
 
+def test_glm52_defaults_clear_thinking_to_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CapturingRenderer:
+        def encode(self, parsed: ChatCompletionRequest) -> list[int]:
+            captured.update(parsed.template_kwargs(parsed.tools))
+            return [1]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(service, "_renderer_for", lambda _profile: CapturingRenderer())
+
+    service.count(
+        {
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "hello"}],
+        }
+    )
+
+    assert captured["clear_thinking"] is False
+
+
+@pytest.mark.parametrize("clear_thinking", [True, False])
+def test_glm52_preserves_explicit_clear_thinking(
+    monkeypatch: pytest.MonkeyPatch,
+    clear_thinking: bool,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CapturingRenderer:
+        def encode(self, parsed: ChatCompletionRequest) -> list[int]:
+            captured.update(parsed.template_kwargs(parsed.tools))
+            return [1]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(service, "_renderer_for", lambda _profile: CapturingRenderer())
+
+    service.count(
+        {
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "hello"}],
+            "clear_thinking": clear_thinking,
+        }
+    )
+
+    assert captured["clear_thinking"] is clear_thinking
+
+
+def test_glm52_preserves_explicit_template_clear_thinking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CapturingRenderer:
+        def encode(self, parsed: ChatCompletionRequest) -> list[int]:
+            captured.update(parsed.template_kwargs(parsed.tools))
+            return [1]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(service, "_renderer_for", lambda _profile: CapturingRenderer())
+
+    service.count(
+        {
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "hello"}],
+            "chat_template_kwargs": {"clear_thinking": True},
+        }
+    )
+
+    assert captured["clear_thinking"] is True
+
+
+def test_other_models_do_not_get_glm52_clear_thinking_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CapturingRenderer:
+        def encode(self, parsed: ChatCompletionRequest) -> list[int]:
+            captured.update(parsed.template_kwargs(parsed.tools))
+            return [1]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(service, "_renderer_for", lambda _profile: CapturingRenderer())
+
+    service.count(
+        {
+            "model": "glm-5.1",
+            "messages": [{"role": "user", "content": "hello"}],
+        }
+    )
+
+    assert "clear_thinking" not in captured
+
+
+def test_non_string_tool_arguments_are_request_processing_errors() -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+
+    with pytest.raises(
+        RequestProcessingError,
+        match="assistant tool call arguments must be a JSON string",
+    ):
+        service.count(
+            {
+                "model": "glm-5.2",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "f",
+                                    "arguments": {"x": 1},
+                                },
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+
 def test_prefix_matches_vllm_continuation_fields() -> None:
     service = TokenCountService(assets_root=Path("model_assets"))
     messages = [
