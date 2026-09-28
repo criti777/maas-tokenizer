@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from .errors import UnknownModelError
 
@@ -26,7 +26,7 @@ class ModelProfile(BaseModel):
     trust_remote_code: bool = False
     template_thinking_mode: bool = False
     minimal_disables_thinking: bool = False
-    default_clear_thinking: bool | None = None
+    chat_template_defaults: dict[str, JsonValue] = Field(default_factory=dict)
     asset_manifest: str = Field(min_length=1)
     capabilities: dict[str, bool]
 

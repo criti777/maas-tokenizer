@@ -36,11 +36,11 @@ def test_glm52_thinking_behavior_is_profile_driven() -> None:
 
     glm52 = registry.resolve("glm-5.2")
     assert glm52.minimal_disables_thinking is True
-    assert glm52.default_clear_thinking is False
+    assert glm52.chat_template_defaults == {"clear_thinking": False}
 
     glm51 = registry.resolve("glm-5.1")
     assert glm51.minimal_disables_thinking is False
-    assert glm51.default_clear_thinking is None
+    assert glm51.chat_template_defaults == {}
 
 
 @pytest.mark.parametrize(

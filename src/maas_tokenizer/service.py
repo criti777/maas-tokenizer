@@ -55,6 +55,31 @@ def _contains_media(messages: object) -> bool:
     return False
 
 
+def _apply_chat_template_defaults(
+    request: dict[str, Any], defaults: Mapping[str, Any]
+) -> None:
+    if not defaults:
+        return
+
+    raw_kwargs = request.get("chat_template_kwargs")
+    if raw_kwargs is None:
+        template_kwargs: dict[str, Any] = {}
+    elif isinstance(raw_kwargs, Mapping):
+        template_kwargs = dict(raw_kwargs)
+    else:
+        raise RequestProcessingError("chat_template_kwargs must be an object")
+
+    changed = False
+    for key, value in defaults.items():
+        if key in request or key in template_kwargs:
+            continue
+        template_kwargs[key] = value
+        changed = True
+
+    if changed:
+        request["chat_template_kwargs"] = template_kwargs
+
+
 class TokenCountService:
     """Count prompt token IDs after model-specific preprocessing."""
 
@@ -105,16 +130,10 @@ class TokenCountService:
             request,
             minimal_disables_thinking=profile.minimal_disables_thinking,
         )
-        if (
-            profile.default_clear_thinking is not None
-            and "clear_thinking" not in request_dict
-        ):
-            template_kwargs = request_dict.get("chat_template_kwargs")
-            if (
-                not isinstance(template_kwargs, Mapping)
-                or "clear_thinking" not in template_kwargs
-            ):
-                request_dict["clear_thinking"] = profile.default_clear_thinking
+        _apply_chat_template_defaults(
+            request_dict,
+            profile.chat_template_defaults,
+        )
         try:
             parsed = ChatCompletionRequest.model_validate(request_dict)
         except ValidationError as error:

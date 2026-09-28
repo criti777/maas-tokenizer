@@ -158,6 +158,30 @@ def test_glm52_preserves_explicit_template_clear_thinking(
     assert captured["clear_thinking"] is True
 
 
+def test_glm52_preserves_explicit_thinking_clear_thinking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CapturingRenderer:
+        def encode(self, parsed: ChatCompletionRequest) -> list[int]:
+            captured.update(parsed.template_kwargs(parsed.tools))
+            return [1]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(service, "_renderer_for", lambda _profile: CapturingRenderer())
+
+    service.count(
+        {
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "hello"}],
+            "thinking": {"clear_thinking": True},
+        }
+    )
+
+    assert captured["clear_thinking"] is True
+
+
 def test_other_models_do_not_get_glm52_clear_thinking_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

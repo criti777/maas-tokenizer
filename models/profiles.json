@@ -67,7 +67,7 @@
     "revision": "b4734de4facf877f85769a911abafc5283eab3d9",
     "renderer": "hf",
     "minimal_disables_thinking": true,
-    "default_clear_thinking": false,
+    "chat_template_defaults": {"clear_thinking": false},
     "asset_manifest": "models/manifests/glm-5.2.json",
     "capabilities": {"tools": true, "thinking": true, "content_parts": false}
   },
