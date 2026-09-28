@@ -31,6 +31,18 @@ def test_registry_rejects_unknown_model() -> None:
         registry.resolve("not-a-model")
 
 
+def test_glm52_thinking_behavior_is_profile_driven() -> None:
+    registry = ModelRegistry.from_file(PROFILES)
+
+    glm52 = registry.resolve("glm-5.2")
+    assert glm52.minimal_disables_thinking is True
+    assert glm52.default_clear_thinking is False
+
+    glm51 = registry.resolve("glm-5.1")
+    assert glm51.minimal_disables_thinking is False
+    assert glm51.default_clear_thinking is None
+
+
 @pytest.mark.parametrize(
     ("alias", "expected_profile"),
     [

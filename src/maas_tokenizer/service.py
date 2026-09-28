@@ -103,15 +103,18 @@ class TokenCountService:
         profile = self.registry.resolve(model)
         request_dict = normalize_compatibility_fields(
             request,
-            minimal_disables_thinking=profile.profile_id == "glm-5.2",
+            minimal_disables_thinking=profile.minimal_disables_thinking,
         )
-        if profile.profile_id == "glm-5.2" and "clear_thinking" not in request_dict:
+        if (
+            profile.default_clear_thinking is not None
+            and "clear_thinking" not in request_dict
+        ):
             template_kwargs = request_dict.get("chat_template_kwargs")
             if (
                 not isinstance(template_kwargs, Mapping)
                 or "clear_thinking" not in template_kwargs
             ):
-                request_dict["clear_thinking"] = False
+                request_dict["clear_thinking"] = profile.default_clear_thinking
         try:
             parsed = ChatCompletionRequest.model_validate(request_dict)
         except ValidationError as error:

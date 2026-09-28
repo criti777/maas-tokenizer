@@ -25,6 +25,8 @@ class ModelProfile(BaseModel):
     renderer: RendererName
     trust_remote_code: bool = False
     template_thinking_mode: bool = False
+    minimal_disables_thinking: bool = False
+    default_clear_thinking: bool | None = None
     asset_manifest: str = Field(min_length=1)
     capabilities: dict[str, bool]
 
