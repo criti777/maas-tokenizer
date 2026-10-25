@@ -20,6 +20,8 @@
 
 模型资产固定在 `model_assets/<model>/`，包括 tokenizer、chat template 和必要配置，不包括权重。`models/profiles.json` 负责把请求中的模型名统一路由到对应资产和 renderer。DeepSeek V3.2 使用从 vLLM 提取的专用路径；V4 Flash/Pro 使用固定版本的官方 Python 消息编码器；V4.1 Flash 使用其固定版本的官方文本编码器；Kimi K3 使用官方 Python XTML 分段渲染；其他模型使用固定的 Hugging Face chat-template 路径。
 
+所有模型统一只统计文本 content。多模态 content parts（如图片、音频、视频及其他非文本类型）会在渲染前移除；即使模型 renderer 能识别多模态标记，也不计入这些 payload。
+
 DS V4 请求仅接受 `deepseek-v4-flash`、`deepseek-v4-pro`（忽略大小写），不接受旧 `deepseek-v4` 或 Hugging Face 仓库名。两者独立加载对应资产，共用新版官方渲染器：思考模式下 `low` 不加前缀，`high`、`max` 使用各自官方前缀；`xhigh` 兼容映射为 `max`，`minimal`/`medium` 映射为 `low`，`none` 关闭思考。损坏的工具参数 JSON 按官方规则保留原文并回退渲染。
 
 `glm-5.3`（也接受 `zai-org/GLM-5.3`，忽略大小写）固定使用官方 `ba32f8c19c8738e2c57c71798c601d477a7bf844` 的分词资产和原版聊天模板，包含 2026-10-14 的工具结果 ID 校验及排序优化。工具结果中的原始文本分段、`id` 和批量 `output` 结构会交给官方模板处理。GLM-5.3 模板默认保留历史思考，`clear_thinking=true` 可清除历史思考；`reasoning_effort=low/high` 使用对应前缀，其他值按官方模板回退为 `max`。现有 `glm-5.3-flash` 继续使用原有独立配置。

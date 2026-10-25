@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from maas_tokenizer.errors import ProcessorRequiredError, RequestProcessingError
+from maas_tokenizer.errors import RequestProcessingError
 from maas_tokenizer.protocol import ChatCompletionRequest
 from maas_tokenizer.service import TokenCountService
 
@@ -24,23 +24,32 @@ def test_invalid_message_is_rejected() -> None:
         service.count({"model": "glm-5.2", "messages": [{"content": "missing role"}]})
 
 
-def test_media_requiring_processor_is_rejected() -> None:
+def test_media_for_unsupported_model_is_skipped() -> None:
     service = TokenCountService(assets_root=Path("model_assets"))
-    with pytest.raises(ProcessorRequiredError):
-        service.count(
-            {
-                "model": "glm-5.2",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "describe"},
-                            {"type": "image_url", "image_url": {"url": "https://invalid.example/x.png"}},
-                        ],
-                    }
-                ],
-            }
-        )
+    with_media = service.count(
+        {
+            "model": "glm-5.2",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "describe"},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": "https://invalid.example/x.png"},
+                        },
+                    ],
+                }
+            ],
+        }
+    )
+    text_only = service.count(
+        {
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "describe"}],
+        }
+    )
+    assert with_media == text_only
 
 
 def test_top_level_thinking_matches_vllm_template_kwargs() -> None:

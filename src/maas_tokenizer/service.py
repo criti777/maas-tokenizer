@@ -11,13 +11,10 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from vendor.vllm.extracted.chat_utils import (
-    InvalidToolArgumentsError,
-    UnsupportedMultimodalError,
-)
+from vendor.vllm.extracted.chat_utils import InvalidToolArgumentsError
 
 from .assets import verify_asset_directory
-from .errors import ProcessorRequiredError, RequestProcessingError
+from .errors import RequestProcessingError
 from .protocol import ChatCompletionRequest
 from .registry import ModelProfile, ModelRegistry
 from .request_compat import normalize_compatibility_fields
@@ -27,32 +24,58 @@ from .renderers import Renderer, build_renderer
 PROJECT_ROOT = Path(__file__).parents[2]
 DEFAULT_ASSETS = PROJECT_ROOT / "model_assets"
 DEFAULT_PROFILES = PROJECT_ROOT / "models" / "profiles.json"
-_MEDIA_TYPES = {
-    "image",
-    "image_url",
-    "input_image",
-    "video",
-    "video_url",
-    "audio",
-    "audio_url",
-    "input_audio",
+_TEXT_CONTENT_TYPES = {
+    "text",
+    "input_text",
+    "output_text",
+    "refusal",
+    "thinking",
+    "tool_reference",
+    "tool_result",
 }
+_DROP_PART = object()
 _RUN_LOGGER = logging.getLogger("maas_tokenizer.run")
 
 
-def _contains_media(messages: object) -> bool:
+def _strip_multimodal_payload(value: Any) -> Any:
+    """Remove media blocks recursively while preserving text and message metadata."""
+    if isinstance(value, list):
+        return [
+            cleaned
+            for item in value
+            if (cleaned := _strip_multimodal_payload(item)) is not _DROP_PART
+        ]
+    if isinstance(value, Mapping):
+        part_type = value.get("type")
+        if isinstance(part_type, str):
+            if part_type not in _TEXT_CONTENT_TYPES:
+                return _DROP_PART
+            if part_type != "tool_result":
+                return dict(value)
+        return {
+            key: cleaned
+            for key, item in value.items()
+            if (cleaned := _strip_multimodal_payload(item)) is not _DROP_PART
+        }
+    return value
+
+
+def _strip_multimodal_messages(messages: Any) -> Any:
     if not isinstance(messages, list):
-        return False
+        return messages
+    result = []
     for message in messages:
         if not isinstance(message, Mapping):
+            result.append(message)
             continue
-        content = message.get("content")
-        if isinstance(content, list) and any(
-            isinstance(part, Mapping) and part.get("type") in _MEDIA_TYPES
-            for part in content
-        ):
-            return True
-    return False
+        cleaned = dict(message)
+        for field in ("content", "content_blocks"):
+            if field not in cleaned:
+                continue
+            value = _strip_multimodal_payload(cleaned[field])
+            cleaned[field] = None if value is _DROP_PART else value
+        result.append(cleaned)
+    return result
 
 
 def _apply_chat_template_defaults(
@@ -130,6 +153,9 @@ class TokenCountService:
             request,
             minimal_disables_thinking=profile.minimal_disables_thinking,
         )
+        request_dict["messages"] = _strip_multimodal_messages(
+            request_dict.get("messages")
+        )
         _apply_chat_template_defaults(
             request_dict,
             profile.chat_template_defaults,
@@ -138,17 +164,9 @@ class TokenCountService:
             parsed = ChatCompletionRequest.model_validate(request_dict)
         except ValidationError as error:
             raise RequestProcessingError(str(error)) from error
-        if _contains_media(parsed.messages) and not profile.capabilities.get(
-            "content_parts", False
-        ):
-            raise ProcessorRequiredError(
-                f"{profile.profile_id} requires a multimodal processor"
-            )
         try:
             renderer = self._renderer_for(profile)
             token_ids = renderer.encode(parsed)
         except InvalidToolArgumentsError as error:
             raise RequestProcessingError(str(error)) from error
-        except UnsupportedMultimodalError as error:
-            raise ProcessorRequiredError(str(error)) from error
         return len(token_ids)
