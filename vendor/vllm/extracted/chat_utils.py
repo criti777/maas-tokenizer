@@ -83,7 +83,8 @@ def _normalize_content(content: Any, content_format: ContentFormat) -> Any:
 
 
 def parse_chat_messages(
-    messages: list[dict[str, Any]], content_format: ContentFormat
+    messages: list[dict[str, Any]], content_format: ContentFormat,
+    *, preserve_tool_arguments: bool = False,
 ) -> list[dict[str, Any]]:
     conversation: list[dict[str, Any]] = []
     for source in messages:
@@ -121,11 +122,13 @@ def parse_chat_messages(
         elif source["role"] == "developer":
             message["tools"] = source.get("tools")
         conversation.append(message)
-    _postprocess_messages(conversation)
+    _postprocess_messages(conversation, preserve_tool_arguments=preserve_tool_arguments)
     return conversation
 
 
-def _postprocess_messages(messages: list[dict[str, Any]]) -> None:
+def _postprocess_messages(
+    messages: list[dict[str, Any]], *, preserve_tool_arguments: bool = False
+) -> None:
     for message in messages:
         if message["role"] != "assistant" or "tool_calls" not in message:
             continue
@@ -144,6 +147,13 @@ def _postprocess_messages(messages: list[dict[str, Any]]) -> None:
             ):
                 raise ValueError("only assistant function tool_calls are supported")
             arguments = function.get("arguments")
+            if preserve_tool_arguments:
+                if arguments is not None and not isinstance(arguments, str):
+                    raise InvalidToolArgumentsError(
+                        "assistant tool call arguments must be a JSON string"
+                    )
+                # V4's official encoder owns JSON parsing and malformed-string fallback.
+                continue
             if arguments is None or arguments == "":
                 function["arguments"] = {}
                 continue

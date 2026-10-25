@@ -1,0 +1,392 @@
+{
+  "provenance": {
+    "repository": "deepseek-ai/DeepSeek-V4-Pro-0813",
+    "revision": "72e1d3230f6c080a530b0a1d46f8eb4602340597",
+    "script_sha256": "abc0d26120250dda0ae077dc64aa28836026e61e970854aaeb792445e6a0dde6",
+    "tokenizer_sha256": "8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf",
+    "generation": "Unmodified official encode_messages + tokenizers 0.22.2, add_special_tokens=False; xhigh -> max, minimal/medium -> low are service compatibility mappings."
+  },
+  "cases": [
+    {
+      "name": "effort_None",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "thinking": true
+      },
+      "prompt_sha256": "6ad21fbb3aad41b2391b155bf89e5312b2789cc685d70c41f3b3e5a3f0ca0786",
+      "prompt_tokens": 7
+    },
+    {
+      "name": "effort_none",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "none"
+      },
+      "prompt_sha256": "447b7a2dc1c5ecf2b39983a26585ad71133b09c0ceda9637f2e47b61dfd52871",
+      "prompt_tokens": 7
+    },
+    {
+      "name": "effort_minimal",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "minimal"
+      },
+      "prompt_sha256": "6ad21fbb3aad41b2391b155bf89e5312b2789cc685d70c41f3b3e5a3f0ca0786",
+      "prompt_tokens": 7
+    },
+    {
+      "name": "effort_low",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "low"
+      },
+      "prompt_sha256": "6ad21fbb3aad41b2391b155bf89e5312b2789cc685d70c41f3b3e5a3f0ca0786",
+      "prompt_tokens": 7
+    },
+    {
+      "name": "effort_medium",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "medium"
+      },
+      "prompt_sha256": "6ad21fbb3aad41b2391b155bf89e5312b2789cc685d70c41f3b3e5a3f0ca0786",
+      "prompt_tokens": 7
+    },
+    {
+      "name": "effort_high",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "high"
+      },
+      "prompt_sha256": "bc2a3dd4ec9ff8be78f4022c03509f7b05ea9901b31ae875b75f7549016a1190",
+      "prompt_tokens": 86
+    },
+    {
+      "name": "effort_max",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "max"
+      },
+      "prompt_sha256": "5c3cd45cb5701638423870ec08fdc1bb8f061f51e1ec2bffd71390d7c9dc7548",
+      "prompt_tokens": 99
+    },
+    {
+      "name": "effort_xhigh",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "prove it"
+          }
+        ],
+        "reasoning_effort": "xhigh"
+      },
+      "prompt_sha256": "5c3cd45cb5701638423870ec08fdc1bb8f061f51e1ec2bffd71390d7c9dc7548",
+      "prompt_tokens": 99
+    },
+    {
+      "name": "unicode_chat",
+      "request": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "回答要准确。"
+          },
+          {
+            "role": "user",
+            "content": "你好, world 🌍\n12345 café"
+          }
+        ],
+        "thinking": false
+      },
+      "prompt_sha256": "a085f54d150df3651d9958b1a353045e3354f62a28285dc0b43af3625fc995e6",
+      "prompt_tokens": 17
+    },
+    {
+      "name": "history_drop_False",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "one"
+          },
+          {
+            "role": "assistant",
+            "content": "answer",
+            "reasoning_content": "my reason"
+          },
+          {
+            "role": "user",
+            "content": "two"
+          }
+        ],
+        "thinking": true,
+        "chat_template_kwargs": {
+          "drop_thinking": false
+        }
+      },
+      "prompt_sha256": "c7d5b4429d92fb57729df0fc1dd5b3a2ee2e4ac835d479a36497f198d82ee9d3",
+      "prompt_tokens": 14
+    },
+    {
+      "name": "history_drop_True",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "one"
+          },
+          {
+            "role": "assistant",
+            "content": "answer",
+            "reasoning_content": "my reason"
+          },
+          {
+            "role": "user",
+            "content": "two"
+          }
+        ],
+        "thinking": true,
+        "chat_template_kwargs": {
+          "drop_thinking": true
+        }
+      },
+      "prompt_sha256": "b45847a316a297147e45aaa453f9d9093eb75b9419e43cf160122089f6ce3ea1",
+      "prompt_tokens": 11
+    },
+    {
+      "name": "assistant_prefix",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "draft"
+          },
+          {
+            "role": "assistant",
+            "content": "partial",
+            "wo_eos": true
+          }
+        ],
+        "thinking": true,
+        "add_generation_prompt": false
+      },
+      "prompt_sha256": "6d9e5beb02eb66ce6d04a61525a9b60999095d07405b9ae1438f0d0a83f4e68d",
+      "prompt_tokens": 8
+    },
+    {
+      "name": "tool_schema",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "北京天气"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "weather",
+              "description": "look up weather",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "reasoning_effort": "high"
+      },
+      "prompt_sha256": "4b35dd1a13188729748bc49a8ca0be3ff4d6ad5e6a12744408fd7f6771070fd4",
+      "prompt_tokens": 343
+    },
+    {
+      "name": "valid_tool",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "weather"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "weather",
+                  "arguments": "{\"city\":\"北京\",\"days\":2,\"details\":true}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "sunny"
+          }
+        ],
+        "thinking": true
+      },
+      "prompt_sha256": "a0d1f332592a5c2570d31149877e914e7ce92a07dd2d6585a1ad35f0bc09d8b3",
+      "prompt_tokens": 93
+    },
+    {
+      "name": "malformed_tool",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "weather"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "weather",
+                  "arguments": "{bad"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "sunny"
+          }
+        ],
+        "thinking": true
+      },
+      "prompt_sha256": "be5053ab9855ac3561faa878cdb10ed5c4e77cc666af966934c3f34efbd867ce",
+      "prompt_tokens": 61
+    },
+    {
+      "name": "empty_tool",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "weather"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "weather",
+                  "arguments": ""
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "sunny"
+          }
+        ],
+        "thinking": true
+      },
+      "prompt_sha256": "96ed4a003bf777f4b0b53379b33b79a1df5bb74e377f67865611d87ab7f39a9d",
+      "prompt_tokens": 59
+    },
+    {
+      "name": "tool_order",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "both"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "b",
+            "content": "second"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "first"
+          }
+        ],
+        "thinking": true
+      },
+      "prompt_sha256": "462d1e8e920d20ec31630d12ec03800307630744be678a972a125c00d6c46985",
+      "prompt_tokens": 66
+    }
+  ]
+}

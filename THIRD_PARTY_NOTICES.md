@@ -12,3 +12,19 @@ Kimi K3 tokenizer configuration and Python encoding files under
 Kimi K3 License. The complete upstream license is retained beside those assets
 as `LICENSE`; it includes additional terms for certain Model-as-a-Service
 commercial use.
+
+DeepSeek V4 input encoding in `vendor/vllm/extracted/deepseek_v4_encoding.py`
+is derived from DeepSeek's MIT-licensed `encoding/encoding_dsv4.py` in
+`deepseek-ai/DeepSeek-V4-Pro-0813` at revision
+`72e1d3230f6c080a530b0a1d46f8eb4602340597`, byte-identical to
+`deepseek-ai/DeepSeek-V4-Flash-0731` at
+`7872f01b1d1fe23eabc4c98b48bffcef5a386062`.
+Upstream SHA-256: `abc0d26120250dda0ae077dc64aa28836026e61e970854aaeb792445e6a0dde6`.
+Only input encoding is retained; upstream assertions are replaced by runtime
+validation, and the unused output parsing helpers are omitted. The full upstream
+MIT notice is retained in `vendor/vllm/extracted/DEEPSEEK_V4_LICENSE`.
+
+The corresponding tokenizer/config assets are pinned to those same revisions
+under `model_assets/deepseek-ai--DeepSeek-V4-Flash-0731/` and
+`model_assets/deepseek-ai--DeepSeek-V4-Pro-0813/`; each asset directory retains
+the upstream `LICENSE`.

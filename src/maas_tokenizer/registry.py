@@ -20,6 +20,7 @@ class ModelProfile(BaseModel):
 
     profile_id: str = Field(min_length=1)
     aliases: tuple[str, ...] = ()
+    accept_repository_alias: bool = True
     repository: str = Field(pattern=r"^[^/]+/[^/]+$")
     revision: str = Field(pattern=r"^[0-9a-f]{40}$")
     renderer: RendererName
@@ -36,7 +37,10 @@ class ModelRegistry:
         self._profiles = tuple(profiles)
         by_alias: dict[str, ModelProfile] = {}
         for profile in self._profiles:
-            for alias in (profile.profile_id, profile.repository, *profile.aliases):
+            aliases = (profile.profile_id, *profile.aliases)
+            if profile.accept_repository_alias:
+                aliases += (profile.repository,)
+            for alias in aliases:
                 normalized_alias = alias.casefold()
                 if normalized_alias in by_alias:
                     raise ValueError(f"duplicate model alias: {alias}")

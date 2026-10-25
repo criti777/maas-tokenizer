@@ -1,13 +1,16 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# ruff: noqa
-# fmt: off
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023 DeepSeek
+# Derived from deepseek-ai/DeepSeek-V4-Pro-0813 at
+# 72e1d3230f6c080a530b0a1d46f8eb4602340597 (identical to Flash-0731).
+# Upstream encoding SHA-256: abc0d26120250dda0ae077dc64aa28836026e61e970854aaeb792445e6a0dde6
+# Adaptations: input encoding only; assertions become runtime ValueErrors.
+# See DEEPSEEK_V4_LICENSE for the upstream MIT notice.
 
 """
 DeepSeek-V4 Encoding
 
-A self-contained implementation for encoding DeepSeek-V4 chat messages with tool
-calling, thinking mode, and quick instruction task support.
+A self-contained implementation for encoding/decoding DeepSeek-V4 chat messages
+with tool calling, thinking mode, and quick instruction task support.
 """
 
 from typing import Any, Dict, List, Union, Optional
@@ -48,7 +51,7 @@ user_msg_template: str = "{content}"
 latest_reminder_msg_template: str = "{content}"
 assistant_msg_template: str = "{reasoning}{content}{tool_calls}" + eos_token
 assistant_msg_wo_eos_template: str = "{reasoning}{content}{tool_calls}"
-thinking_template: str = "{reasoning}"
+thinking_template: str = "{reasoning_content}"
 
 response_format_template: str = (
     "## Response Format:\n\nYou MUST strictly adhere to the following schema to reply:\n{schema}"
@@ -65,11 +68,23 @@ tool_output_template: str = (
     "<tool_result>{content}</tool_result>"
 )
 
-REASONING_EFFORT_MAX = (
-    "Reasoning Effort: Absolute maximum with no shortcuts permitted.\n"
-    "You MUST be very thorough in your thinking and comprehensively decompose the problem to resolve the root cause, rigorously stress-testing your logic against all potential paths, edge cases, and adversarial scenarios.\n"
-    "Explicitly write out your entire deliberation process, documenting every intermediate step, considered alternative, and rejected hypothesis to ensure absolutely no assumption is left unchecked.\n\n"
-)
+# Reasoning effort levels. In thinking mode, the prompt for the selected level is
+# prepended at the very beginning of the conversation. `low` is the default and
+# adds nothing.
+REASONING_EFFORT_PROMPTS: Dict[str, str] = {
+    "low": "",
+    "high": (
+        "Reasoning Effort: Absolute maximum with no shortcuts permitted.\n"
+        "You MUST be very thorough in your thinking and comprehensively decompose the problem to resolve the root cause, rigorously stress-testing your logic against all potential paths, edge cases, and adversarial scenarios.\n"
+        "Explicitly write out your entire deliberation process, documenting every intermediate step, considered alternative, and rejected hypothesis to ensure absolutely no assumption is left unchecked.\n\n"
+    ),
+    "max": (
+        "Reasoning Effort: Beyond maximum — exhaustive, relentless, and uncompromising.\n"
+        "You MUST reason with the utmost depth and rigor, leaving absolutely nothing to chance: exhaustively decompose the problem into its most fundamental components, trace every causal chain to its root, and resolve the underlying cause rather than any surface symptom.\n"
+        "Do not stop reasoning until you have independently verified the solution from multiple angles and are certain that no assumption remains unchecked and no error remains undiscovered.\n\n"
+    ),
+}
+DEFAULT_REASONING_EFFORT = "low"
 
 TOOLS_TEMPLATE = """## Tools
 
@@ -126,12 +141,14 @@ def tool_calls_from_openai_format(tool_calls):
     ]
 
 
-def encode_arguments_to_dsml(tool_call: Dict[str, Any]) -> str:
+
+
+def encode_arguments_to_dsml(tool_call: Dict[str, str]) -> str:
     """
     Encode tool call arguments into DSML parameter format.
 
     Args:
-        tool_call: Dict with "name" and "arguments" keys.
+        tool_call: Dict with "name" and "arguments" (JSON string) keys.
 
     Returns:
         DSML-formatted parameter string.
@@ -139,10 +156,10 @@ def encode_arguments_to_dsml(tool_call: Dict[str, Any]) -> str:
     p_dsml_template = '<{dsml_token}parameter name="{key}" string="{is_str}">{value}</{dsml_token}parameter>'
     P_dsml_strs = []
 
-    if isinstance(tool_call["arguments"], str):
+    try:
         arguments = json.loads(tool_call["arguments"])
-    else:
-        arguments = tool_call["arguments"]
+    except Exception as err:
+        arguments = {"arguments": tool_call["arguments"]}
 
     for k, v in arguments.items():
         p_dsml_str = p_dsml_template.format(
@@ -154,6 +171,8 @@ def encode_arguments_to_dsml(tool_call: Dict[str, Any]) -> str:
         P_dsml_strs.append(p_dsml_str)
 
     return "\n".join(P_dsml_strs)
+
+
 
 
 def render_tools(tools: List[Dict[str, Union[str, Dict[str, Any]]]]) -> str:
@@ -202,15 +221,16 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
         messages: Full list of messages in the conversation.
         thinking_mode: Either "chat" or "thinking".
         drop_thinking: Whether to drop reasoning content from earlier turns.
-        reasoning_effort: Optional reasoning effort level ("max", "high", or None).
+        reasoning_effort: Reasoning effort level, one of "low", "high", "max".
+            None is treated as "low".
 
     Returns:
         Encoded string for this message.
     """
-    if not 0 <= index < len(messages):
-        raise IndexError(f"Message index out of range: {index}")
-    if thinking_mode not in ["chat", "thinking"]:
-        raise ValueError(f"Invalid thinking_mode `{thinking_mode}`")
+    if not (0 <= index < len(messages)):
+        raise ValueError('invalid V4 encoding input')
+    if not (thinking_mode in ['chat', 'thinking']):
+        raise ValueError(f'Invalid thinking_mode `{thinking_mode}`')
 
     prompt = ""
     msg = messages[index]
@@ -221,7 +241,7 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
     tools = msg.get("tools")
     response_format = msg.get("response_format")
     tool_calls = msg.get("tool_calls")
-    reasoning = msg.get("reasoning")
+    reasoning_content = msg.get("reasoning_content")
     wo_eos = msg.get("wo_eos", False)
 
     if tools:
@@ -229,11 +249,12 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
     if tool_calls:
         tool_calls = tool_calls_from_openai_format(tool_calls)
 
-    # Reasoning effort prefix (only at index 0 in thinking mode with max effort)
-    if reasoning_effort not in ['max', None, 'high']:
-        raise ValueError(f"Invalid reasoning effort: {reasoning_effort}")
-    if index == 0 and thinking_mode == "thinking" and reasoning_effort == 'max':
-        prompt += REASONING_EFFORT_MAX
+    # Reasoning effort prefix (only at index 0 in thinking mode; "low" adds nothing)
+    reasoning_effort = reasoning_effort or DEFAULT_REASONING_EFFORT
+    if not (reasoning_effort in REASONING_EFFORT_PROMPTS):
+        raise ValueError(f'Invalid reasoning effort: {reasoning_effort}, expected one of {list(REASONING_EFFORT_PROMPTS)}')
+    if index == 0 and thinking_mode == "thinking":
+        prompt += REASONING_EFFORT_PROMPTS[reasoning_effort]
 
     if role == "system":
         prompt += system_msg_template.format(content=content or "")
@@ -243,8 +264,8 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
             prompt += "\n\n" + response_format_template.format(schema=to_json(response_format))
 
     elif role == "developer":
-        if not content:
-            raise ValueError(f"Invalid message for role `{role}`: {msg}")
+        if not (content):
+            raise ValueError(f'Invalid message for role `{role}`: {msg}')
 
         content_developer = USER_SP_TOKEN
         content_developer += content
@@ -310,14 +331,14 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
             )
 
         summary_content = content or ""
-        reasoning = reasoning or ""
+        rc = reasoning_content or ""
 
         # Check if previous message has a task - if so, this is a task output (no thinking)
         prev_has_task = index - 1 >= 0 and messages[index - 1].get("task") is not None
 
         if thinking_mode == "thinking" and not prev_has_task:
             if not drop_thinking or index > last_user_idx:
-                thinking_part = thinking_template.format(reasoning=reasoning) + thinking_end_token
+                thinking_part = thinking_template.format(reasoning_content=rc) + thinking_end_token
             else:
                 thinking_part = ""
 
@@ -343,10 +364,8 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
     task = messages[index].get("task")
     if task is not None:
         # Task special token for internal classification tasks
-        if task not in VALID_TASKS:
-            raise ValueError(
-                f"Invalid task: '{task}'. Valid tasks are: {list(VALID_TASKS)}"
-            )
+        if not (task in VALID_TASKS):
+            raise ValueError(f"Invalid task: '{task}'. Valid tasks are: {list(VALID_TASKS)}")
         task_sp_token = DS_TASK_SP_TOKENS[task]
 
         if task != "action":
@@ -501,10 +520,11 @@ def encode_messages(
         messages: List of message dicts to encode.
         thinking_mode: Either "chat" or "thinking".
         context: Optional preceding context messages (already encoded prefix).
-        drop_thinking: If True, drop reasoning from earlier assistant turns
+        drop_thinking: If True, drop reasoning_content from earlier assistant turns
                       (only keep reasoning for messages after the last user message).
         add_default_bos_token: Whether to prepend BOS token at conversation start.
-        reasoning_effort: Optional reasoning effort level ("max", "high", or None).
+        reasoning_effort: Reasoning effort level, one of "low", "high", "max".
+            Only takes effect in thinking mode. None is treated as "low".
 
     Returns:
         The encoded prompt string.
@@ -551,12 +571,12 @@ def encode_messages(
 
 def _drop_thinking_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Drop reasoning and non-essential messages before the last user message.
+    Drop reasoning_content and non-essential messages before the last user message.
 
     Behavior:
     - Messages with role in ["user", "system", "tool", "latest_reminder"] are always kept.
     - Messages at or after the last user index are always kept.
-    - Assistant messages before the last user get reasoning removed.
+    - Assistant messages before the last user get reasoning_content removed.
     - Developer messages before the last user are dropped entirely.
     """
     last_user_idx = find_last_user_index(messages)
@@ -569,11 +589,8 @@ def _drop_thinking_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, An
             result.append(msg)
         elif role == "assistant":
             msg = copy.copy(msg)
-            msg.pop("reasoning", None)
+            msg.pop("reasoning_content", None)
             result.append(msg)
         # developer and other roles before last_user_idx are dropped
 
     return result
-
-
-# fmt: on

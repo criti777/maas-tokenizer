@@ -31,7 +31,8 @@ def test_kimi_counts_official_media_placeholder_without_network() -> None:
     [
         pytest.param("glm-5.2", marks=pytest.mark.model("glm-5.2")),
         pytest.param("deepseek-v3.2", marks=pytest.mark.model("deepseek-v3.2")),
-        pytest.param("deepseek-v4", marks=pytest.mark.model("deepseek-v4")),
+        pytest.param("deepseek-v4-flash", marks=pytest.mark.model("deepseek-v4-flash")),
+        pytest.param("deepseek-v4-pro", marks=pytest.mark.model("deepseek-v4-pro")),
     ],
 )
 def test_processor_dependent_media_is_rejected(profile: str) -> None:

@@ -1,8 +1,12 @@
 {
   "files": {
+    "LICENSE": {
+      "sha256": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040",
+      "size": 1084
+    },
     "config.json": {
-      "sha256": "b628e63398a645abc711d92207f8737dd8140f7a4ef1e0a5b3616019e0ddd818",
-      "size": 1749
+      "sha256": "9dd2a89255469e120b333668ef5a169b7ae46c00f6bbab786bf0be457546aec0",
+      "size": 1967
     },
     "generation_config.json": {
       "sha256": "5fccff80f55a4d455bbe516bdd552edf3e9623df95e99fbf2a3c3389fdf91af0",
@@ -17,8 +21,8 @@
       "size": 801
     }
   },
-  "profile_id": "deepseek-v4",
-  "repository": "deepseek-ai/DeepSeek-V4-Flash",
-  "revision": "60d8d70770c6776ff598c94bb586a859a38244f1",
+  "profile_id": "deepseek-v4-pro",
+  "repository": "deepseek-ai/DeepSeek-V4-Pro-0813",
+  "revision": "72e1d3230f6c080a530b0a1d46f8eb4602340597",
   "schema_version": 1
 }

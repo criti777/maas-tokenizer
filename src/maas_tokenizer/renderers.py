@@ -144,7 +144,9 @@ class DeepSeekV4Renderer:
         self.encoder = encoder
 
     def render(self, parsed: Any) -> RenderedPrompt:
-        conversation = parse_chat_messages(parsed.messages, "string")
+        conversation = parse_chat_messages(
+            parsed.messages, "string", preserve_tool_arguments=True
+        )
         if parsed.tools:
             conversation.insert(0, {"role": "system", "content": "", "tools": parsed.tools})
         kwargs = parsed.template_kwargs(parsed.tools)
@@ -153,7 +155,10 @@ class DeepSeekV4Renderer:
         if effort == "none":
             thinking, effort = False, None
         elif isinstance(effort, str):
-            effort = "max" if effort in {"max", "xhigh"} else "high"
+            if effort == "xhigh":
+                effort = "max"
+            elif effort in {"minimal", "medium"}:
+                effort = "low"
         else:
             effort = None
         text = encode_v4(
