@@ -12,6 +12,7 @@ from maas_tokenizer.service import TokenCountService
         pytest.param("kimi-k2.6", 13, marks=pytest.mark.model("kimi-k2.6")),
         pytest.param("glm-5.1", 11, marks=pytest.mark.model("glm-5.1")),
         pytest.param("glm-5.2", 18, marks=pytest.mark.model("glm-5.2")),
+        pytest.param("glm-5.3", 18, marks=pytest.mark.model("glm-5.3")),
         pytest.param(
             "glm-5.3-flash", 18, marks=pytest.mark.model("glm-5.3-flash")
         ),

@@ -95,6 +95,16 @@
     "capabilities": {"tools": true, "thinking": true, "content_parts": false}
   },
   {
+    "profile_id": "glm-5.3",
+    "aliases": [],
+    "repository": "zai-org/GLM-5.3",
+    "revision": "ba32f8c19c8738e2c57c71798c601d477a7bf844",
+    "renderer": "hf",
+    "preserve_tool_result_content": true,
+    "asset_manifest": "models/manifests/glm-5.3.json",
+    "capabilities": {"tools": true, "thinking": true, "content_parts": false}
+  },
+  {
     "profile_id": "glm-5.3-flash",
     "aliases": [],
     "repository": "zai-org/GLM-5.3-Flash",

@@ -1,0 +1,2498 @@
+{
+  "provenance": {
+    "repository": "zai-org/GLM-5.3",
+    "revision": "ba32f8c19c8738e2c57c71798c601d477a7bf844",
+    "template_sha256": "0e2b6268ac54f04d2bc1157e8cfb896cb66f25c0b5e319ea12e56014c3914f24",
+    "tokenizer_sha256": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+    "generation": "Unmodified official template via AutoTokenizer.apply_chat_template; HF encode(add_special_tokens=False); tool-call JSON strings decoded into objects before rendering."
+  },
+  "cases": [
+    {
+      "name": "effort_None",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "你好, world 🌍"
+          }
+        ]
+      },
+      "prompt_sha256": "8a61217c009795574c2cd4597fc00ca799ca5b2d7a1fade7b894c5fc2ad696f9",
+      "prompt_tokens": 18
+    },
+    {
+      "name": "effort_low",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "你好, world 🌍"
+          }
+        ],
+        "reasoning_effort": "low"
+      },
+      "prompt_sha256": "75da7e9255b79db5111c24401615f5a9d6b29a7ddb0b1500ac6fb422e4262f81",
+      "prompt_tokens": 18
+    },
+    {
+      "name": "effort_high",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "你好, world 🌍"
+          }
+        ],
+        "reasoning_effort": "high"
+      },
+      "prompt_sha256": "7425926873aabe3488e8f4fa03411facee21af0a8d7d7d9ce75121330b5916f8",
+      "prompt_tokens": 18
+    },
+    {
+      "name": "effort_max",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "你好, world 🌍"
+          }
+        ],
+        "reasoning_effort": "max"
+      },
+      "prompt_sha256": "8a61217c009795574c2cd4597fc00ca799ca5b2d7a1fade7b894c5fc2ad696f9",
+      "prompt_tokens": 18
+    },
+    {
+      "name": "effort_medium",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "你好, world 🌍"
+          }
+        ],
+        "reasoning_effort": "medium"
+      },
+      "prompt_sha256": "8a61217c009795574c2cd4597fc00ca799ca5b2d7a1fade7b894c5fc2ad696f9",
+      "prompt_tokens": 18
+    },
+    {
+      "name": "effort_xhigh",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "你好, world 🌍"
+          }
+        ],
+        "reasoning_effort": "xhigh"
+      },
+      "prompt_sha256": "8a61217c009795574c2cd4597fc00ca799ca5b2d7a1fade7b894c5fc2ad696f9",
+      "prompt_tokens": 18
+    },
+    {
+      "name": "history_clear_False",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "one"
+          },
+          {
+            "role": "assistant",
+            "content": "answer",
+            "reasoning_content": "my reasoning"
+          },
+          {
+            "role": "user",
+            "content": "two"
+          }
+        ],
+        "clear_thinking": false
+      },
+      "prompt_sha256": "62cb1eb3cbeb9a50b83a1cad7b8ebc7d85ee766b02ba096bc25a3d0571d0ef7b",
+      "prompt_tokens": 21
+    },
+    {
+      "name": "history_clear_True",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "one"
+          },
+          {
+            "role": "assistant",
+            "content": "answer",
+            "reasoning_content": "my reasoning"
+          },
+          {
+            "role": "user",
+            "content": "two"
+          }
+        ],
+        "clear_thinking": true
+      },
+      "prompt_sha256": "4bea79a1fe07f73a90d6559d3f2187f6b14a6af998c2c507506a5b8f1a0569bf",
+      "prompt_tokens": 19
+    },
+    {
+      "name": "no_generation_prompt",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "draft"
+          },
+          {
+            "role": "assistant",
+            "content": "partial"
+          }
+        ],
+        "add_generation_prompt": false
+      },
+      "prompt_sha256": "2e80a47ed5b4ed8aec3dcf7d79fb85cda45ba440eb3fc9bb2514e75f0218ec69",
+      "prompt_tokens": 15
+    },
+    {
+      "name": "text_parts",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "first"
+              },
+              {
+                "type": "text",
+                "text": "second"
+              }
+            ]
+          }
+        ]
+      },
+      "prompt_sha256": "a2ba7f3673a20c9d69ac30242747958736b0391b0e129e0f5d651f1e7d72be6b",
+      "prompt_tokens": 14
+    },
+    {
+      "name": "tool_schema",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "use tools"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "a",
+              "description": "A",
+              "parameters": {
+                "type": "object"
+              },
+              "strict": true
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "b",
+              "description": "B",
+              "parameters": {
+                "type": "object"
+              },
+              "defer_loading": true
+            }
+          }
+        ]
+      },
+      "prompt_sha256": "06c9044075f07dff81f12b298817bca6a5369486ab8fe3b56c21bf56c5780f29",
+      "prompt_tokens": 131
+    },
+    {
+      "name": "out_of_order",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "b",
+            "content": "second"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "first"
+          }
+        ]
+      },
+      "prompt_sha256": "b6aa83cfb41ee02534b664438b3c3a7daf922df307fd80104bb55dde0f010115",
+      "prompt_tokens": 56
+    },
+    {
+      "name": "id_fallback",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "id": "b",
+            "content": "second"
+          },
+          {
+            "role": "tool",
+            "id": "a",
+            "content": "first"
+          }
+        ]
+      },
+      "prompt_sha256": "b6aa83cfb41ee02534b664438b3c3a7daf922df307fd80104bb55dde0f010115",
+      "prompt_tokens": 56
+    },
+    {
+      "name": "case_sensitive_ids",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "A",
+                "type": "function",
+                "function": {
+                  "name": "A",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "A",
+            "content": "upper"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "lower"
+          }
+        ]
+      },
+      "prompt_sha256": "5130c994f26556ffa9bf6f0db0b99df9a8d5437ba526ca679da40e390ccd7e3f",
+      "prompt_tokens": 56
+    },
+    {
+      "name": "duplicate_result_id",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "b",
+            "content": "second"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "b",
+            "content": "duplicate"
+          }
+        ]
+      },
+      "prompt_sha256": "9f86fc2ec4c796b65f7c8458bd821abf3816bd16742d97b6f5d7b6cbd16cf3b4",
+      "prompt_tokens": 56
+    },
+    {
+      "name": "missing_result_id",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "missing"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "first"
+          }
+        ]
+      },
+      "prompt_sha256": "c47e1cda9c0b4723da5307ff12bb81f9fca3a93b63a069270209cfd172a028ae",
+      "prompt_tokens": 56
+    },
+    {
+      "name": "unknown_result_id",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "unknown",
+            "content": "unknown"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "first"
+          }
+        ]
+      },
+      "prompt_sha256": "a05037dc50dd3e903149443d6fa43b0cf5f62f299674de819fb107dd4306bfb6",
+      "prompt_tokens": 56
+    },
+    {
+      "name": "duplicate_call_id",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": "first"
+          }
+        ]
+      },
+      "prompt_sha256": "8308cc840b24ae4c82a74103ea5e82a058142dd15f9da587c02c82745611d3a0",
+      "prompt_tokens": 53
+    },
+    {
+      "name": "subset_results",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "b",
+            "content": "second"
+          }
+        ]
+      },
+      "prompt_sha256": "74abd41613f425a49234a6d34ee2205f56279463e40cf164fbe9f52c7efd9df7",
+      "prompt_tokens": 53
+    },
+    {
+      "name": "grouped_outputs",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": [
+              {
+                "tool_call_id": "b",
+                "output": "second"
+              },
+              {
+                "tool_call_id": "a",
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "first"
+                  },
+                  {
+                    "type": "text",
+                    "text": " part2"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "prompt_sha256": "3e90e90ad9168e56871f4f4eb5867c73ab00c5ef09e6ae8ec4429f1da58d7967",
+      "prompt_tokens": 58
+    },
+    {
+      "name": "tool_text_parts",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": [
+              {
+                "type": "text",
+                "text": "first"
+              },
+              {
+                "type": "text",
+                "text": "second"
+              }
+            ]
+          }
+        ]
+      },
+      "prompt_sha256": "37030c6fb516ed0fbbea2e0fb55f09916fa61a05e272eb1b51f190ee8af5c9e0",
+      "prompt_tokens": 39
+    },
+    {
+      "name": "tool_reference",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "a",
+            "content": [
+              {
+                "type": "tool_reference",
+                "name": "b"
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "a",
+              "description": "A",
+              "parameters": {
+                "type": "object"
+              },
+              "strict": true
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "b",
+              "description": "B",
+              "parameters": {
+                "type": "object"
+              },
+              "defer_loading": true
+            }
+          }
+        ]
+      },
+      "prompt_sha256": "30acad47a27797d98ebb978e92c5338f6188b4e6834769a3b88e4e3556adb266",
+      "prompt_tokens": 181
+    },
+    {
+      "name": "grouped_tool_reference",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "a",
+                "type": "function",
+                "function": {
+                  "name": "a",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "b",
+                "type": "function",
+                "function": {
+                  "name": "b",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": [
+              {
+                "id": "b",
+                "output": [
+                  {
+                    "type": "tool_reference",
+                    "name": "b"
+                  }
+                ]
+              },
+              {
+                "id": "a",
+                "output": "first"
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "a",
+              "description": "A",
+              "parameters": {
+                "type": "object"
+              },
+              "strict": true
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "b",
+              "description": "B",
+              "parameters": {
+                "type": "object"
+              },
+              "defer_loading": true
+            }
+          }
+        ]
+      },
+      "prompt_sha256": "edc905d07c5182c8b4cf60d39ceaca86301448da387c771488bd6c6df4af6685",
+      "prompt_tokens": 199
+    },
+    {
+      "name": "many_out_of_order",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "look up"
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "check both",
+            "tool_calls": [
+              {
+                "id": "call_000",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_001",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_002",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_003",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_004",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_005",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_006",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_007",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_008",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_009",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_010",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_011",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_012",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_013",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_014",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_015",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_016",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_017",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_018",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_019",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_020",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_021",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_022",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_023",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_024",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_025",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_026",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_027",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_028",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_029",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_030",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_031",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_032",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_033",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_034",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_035",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_036",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_037",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_038",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_039",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_040",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_041",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_042",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_043",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_044",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_045",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_046",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_047",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_048",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_049",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_050",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_051",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_052",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_053",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_054",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_055",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_056",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_057",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_058",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_059",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_060",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_061",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_062",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_063",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_064",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_065",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_066",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_067",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_068",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_069",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_070",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_071",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_072",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_073",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_074",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_075",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_076",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_077",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_078",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_079",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_080",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_081",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_082",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_083",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_084",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_085",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_086",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_087",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_088",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_089",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_090",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_091",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_092",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_093",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_094",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_095",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_096",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_097",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_098",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_099",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_100",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_101",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_102",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_103",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_104",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_105",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_106",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_107",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_108",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_109",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_110",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_111",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_112",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_113",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_114",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_115",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_116",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_117",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_118",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_119",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_120",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_121",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_122",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_123",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_124",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_125",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_126",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              },
+              {
+                "id": "call_127",
+                "type": "function",
+                "function": {
+                  "name": "lookup",
+                  "arguments": "{\"q\":\"中文\",\"n\":2}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_127",
+            "content": "127"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_126",
+            "content": "126"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_125",
+            "content": "125"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_124",
+            "content": "124"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_123",
+            "content": "123"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_122",
+            "content": "122"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_121",
+            "content": "121"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_120",
+            "content": "120"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_119",
+            "content": "119"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_118",
+            "content": "118"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_117",
+            "content": "117"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_116",
+            "content": "116"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_115",
+            "content": "115"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_114",
+            "content": "114"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_113",
+            "content": "113"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_112",
+            "content": "112"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_111",
+            "content": "111"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_110",
+            "content": "110"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_109",
+            "content": "109"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_108",
+            "content": "108"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_107",
+            "content": "107"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_106",
+            "content": "106"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_105",
+            "content": "105"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_104",
+            "content": "104"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_103",
+            "content": "103"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_102",
+            "content": "102"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_101",
+            "content": "101"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_100",
+            "content": "100"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_099",
+            "content": "99"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_098",
+            "content": "98"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_097",
+            "content": "97"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_096",
+            "content": "96"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_095",
+            "content": "95"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_094",
+            "content": "94"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_093",
+            "content": "93"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_092",
+            "content": "92"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_091",
+            "content": "91"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_090",
+            "content": "90"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_089",
+            "content": "89"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_088",
+            "content": "88"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_087",
+            "content": "87"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_086",
+            "content": "86"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_085",
+            "content": "85"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_084",
+            "content": "84"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_083",
+            "content": "83"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_082",
+            "content": "82"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_081",
+            "content": "81"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_080",
+            "content": "80"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_079",
+            "content": "79"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_078",
+            "content": "78"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_077",
+            "content": "77"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_076",
+            "content": "76"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_075",
+            "content": "75"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_074",
+            "content": "74"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_073",
+            "content": "73"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_072",
+            "content": "72"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_071",
+            "content": "71"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_070",
+            "content": "70"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_069",
+            "content": "69"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_068",
+            "content": "68"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_067",
+            "content": "67"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_066",
+            "content": "66"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_065",
+            "content": "65"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_064",
+            "content": "64"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_063",
+            "content": "63"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_062",
+            "content": "62"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_061",
+            "content": "61"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_060",
+            "content": "60"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_059",
+            "content": "59"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_058",
+            "content": "58"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_057",
+            "content": "57"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_056",
+            "content": "56"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_055",
+            "content": "55"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_054",
+            "content": "54"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_053",
+            "content": "53"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_052",
+            "content": "52"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_051",
+            "content": "51"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_050",
+            "content": "50"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_049",
+            "content": "49"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_048",
+            "content": "48"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_047",
+            "content": "47"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_046",
+            "content": "46"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_045",
+            "content": "45"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_044",
+            "content": "44"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_043",
+            "content": "43"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_042",
+            "content": "42"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_041",
+            "content": "41"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_040",
+            "content": "40"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_039",
+            "content": "39"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_038",
+            "content": "38"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_037",
+            "content": "37"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_036",
+            "content": "36"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_035",
+            "content": "35"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_034",
+            "content": "34"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_033",
+            "content": "33"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_032",
+            "content": "32"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_031",
+            "content": "31"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_030",
+            "content": "30"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_029",
+            "content": "29"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_028",
+            "content": "28"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_027",
+            "content": "27"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_026",
+            "content": "26"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_025",
+            "content": "25"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_024",
+            "content": "24"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_023",
+            "content": "23"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_022",
+            "content": "22"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_021",
+            "content": "21"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_020",
+            "content": "20"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_019",
+            "content": "19"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_018",
+            "content": "18"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_017",
+            "content": "17"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_016",
+            "content": "16"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_015",
+            "content": "15"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_014",
+            "content": "14"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_013",
+            "content": "13"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_012",
+            "content": "12"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_011",
+            "content": "11"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_010",
+            "content": "10"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_009",
+            "content": "9"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_008",
+            "content": "8"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_007",
+            "content": "7"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_006",
+            "content": "6"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_005",
+            "content": "5"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_004",
+            "content": "4"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_003",
+            "content": "3"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_002",
+            "content": "2"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_001",
+            "content": "1"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_000",
+            "content": "0"
+          }
+        ]
+      },
+      "prompt_sha256": "2cb92869fca9587b996e151d0281eb45c9b511bc07a79a2062ba4d5381fbdc6c",
+      "prompt_tokens": 2324
+    }
+  ]
+}
