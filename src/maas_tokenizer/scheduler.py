@@ -58,6 +58,18 @@ class SerialScheduler:
         )
         self._consumer: asyncio.Task[None] | None = None
         self._closed = False
+        self.active_started_at: float | None = None
+
+    def health_failure_reason(self, *, max_execution_seconds: float) -> str | None:
+        """Inspect state without submitting work or waiting for the executor."""
+        if self._closed or self._consumer is None:
+            return "scheduler_not_running"
+        if self._consumer.done():
+            return "scheduler_consumer_stopped"
+        started_at = self.active_started_at
+        if started_at is not None and perf_counter() - started_at > max_execution_seconds:
+            return "execution_timeout"
+        return None
 
     async def start(self) -> None:
         if self._consumer is None:
@@ -130,6 +142,7 @@ class SerialScheduler:
                     continue
                 started_at = perf_counter()
                 job.started.set_result(None)
+                self.active_started_at = started_at
                 try:
                     value = await loop.run_in_executor(self._executor, job.call)
                 except BaseException as error:
@@ -146,6 +159,8 @@ class SerialScheduler:
                                 process_ms=(perf_counter() - started_at) * 1000,
                             )
                         )
+                finally:
+                    self.active_started_at = None
             finally:
                 self._queue.task_done()
 

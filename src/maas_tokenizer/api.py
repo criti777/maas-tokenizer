@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+import math
 import os
 from time import perf_counter
 from typing import Any
@@ -48,7 +49,7 @@ def _positive_int(name: str, default: int) -> int:
 
 def _positive_float(name: str, default: float) -> float:
     value = float(os.getenv(name, str(default)))
-    if value <= 0:
+    if not math.isfinite(value) or value <= 0:
         raise ValueError(f"{name} must be positive")
     return value
 
@@ -63,6 +64,9 @@ async def lifespan(application: FastAPI):
     configure_process_file_logging(run_logger)
     run_logger.info("event=service_starting")
     try:
+        application.state.max_execution_seconds = _positive_float(
+            "TOKENIZER_MAX_EXECUTION_SECONDS", 10.0
+        )
         scheduler = SerialScheduler(
             queue_size=_positive_int("TOKENIZER_QUEUE_SIZE", 100),
             queue_timeout_seconds=_queue_timeout_seconds(),
@@ -263,7 +267,20 @@ async def token_count(
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health(request: Request):
+    scheduler = getattr(request.app.state, "scheduler", None)
+    reason = (
+        "scheduler_not_running"
+        if scheduler is None
+        else scheduler.health_failure_reason(
+            max_execution_seconds=request.app.state.max_execution_seconds
+        )
+    )
+    if reason is not None:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "reason": reason},
+        )
     return {"status": "ok"}
 
 

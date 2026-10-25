@@ -1,4 +1,6 @@
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -292,6 +294,65 @@ def test_health_is_available_without_entering_scheduler(client) -> None:
     response = client[0].get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_health_reports_blocked_job_and_recovers_after_completion(
+    client, monkeypatch, fail: bool
+) -> None:
+    clock = [100.0]
+    monkeypatch.setattr("maas_tokenizer.scheduler.perf_counter", lambda: clock[0])
+    release, started = Event(), Event()
+
+    class BlockingService:
+        def count(self, request):
+            started.set()
+            release.wait(timeout=5)
+            if fail:
+                raise RuntimeError("test failure")
+            return 7
+
+    app.dependency_overrides[get_token_count_service] = lambda: BlockingService()
+    test_client = client[0]
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        response = pool.submit(
+            test_client.post, "/tokenizer", json={"model": "glm-5.2", "messages": []}
+        )
+        try:
+            assert started.wait(timeout=2)
+            assert app.state.max_execution_seconds == 10
+            assert test_client.get("/health").status_code == 200
+            clock[0] = 111
+            for _ in range(2):
+                health = test_client.get("/health")
+                assert health.status_code == 503
+                assert health.json() == {"status": "unhealthy", "reason": "execution_timeout"}
+            assert not response.done()
+            assert app.state.scheduler.active_started_at == 100
+        finally:
+            release.set()
+        assert response.result(timeout=2).status_code == (500 if fail else 200)
+    assert app.state.scheduler.active_started_at is None
+    clock[0] = 10000
+    assert test_client.get("/health").json() == {"status": "ok"}
+
+
+def test_execution_timeout_can_be_configured(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setenv("TOKENIZER_MAX_EXECUTION_SECONDS", "2.5")
+    monkeypatch.setattr("maas_tokenizer.api._service.count", lambda request: 1)
+    with TestClient(app) as test_client:
+        assert app.state.max_execution_seconds == 2.5
+        assert test_client.get("/health").status_code == 200
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "-inf", "invalid"])
+def test_startup_rejects_invalid_execution_timeout(tmp_path, monkeypatch, value) -> None:
+    monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
+    monkeypatch.setenv("TOKENIZER_MAX_EXECUTION_SECONDS", value)
+    with pytest.raises(ValueError):
+        with TestClient(app):
+            pass
 
 
 def test_startup_warms_glm_5_2_before_serving(tmp_path, monkeypatch) -> None:
