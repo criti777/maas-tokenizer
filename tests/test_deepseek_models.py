@@ -51,6 +51,49 @@ def test_v4_matches_independent_official_prompt_and_token_goldens(
     )
 
 
+@pytest.mark.model("deepseek-v4.1-flash")
+def test_deepseek_v41_flash_matches_official_text_encoder_count() -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    assert service.count(
+        {
+            "model": "deepseek-v4.1-flash",
+            "messages": [{"role": "user", "content": "你好, world 🌍"}],
+        }
+    ) == 9
+
+
+@pytest.mark.model("deepseek-v4.1-flash")
+def test_deepseek_v41_flash_counts_reasoning_effort_and_tools() -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    assert service.count(
+        {
+            "model": "deepseek-v4.1-flash",
+            "thinking": True,
+            "reasoning_effort": "high",
+            "messages": [{"role": "user", "content": "prove it"}],
+        }
+    ) == 33
+    assert service.count(
+        {
+            "model": "deepseek-v4.1-flash",
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "weather",
+                        "description": "Get weather",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"city": {"type": "string"}},
+                        },
+                    },
+                }
+            ],
+            "messages": [{"role": "user", "content": "weather in Paris"}],
+        }
+    ) == 256
+
+
 @pytest.mark.parametrize(
     "profile",
     [

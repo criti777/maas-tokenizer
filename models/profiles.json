@@ -46,6 +46,19 @@
     }
   },
   {
+    "profile_id": "deepseek-v4.1-flash",
+    "aliases": ["deepseek-ai/DeepSeek-V4.1-Flash"],
+    "repository": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "revision": "1bae0e1088993b9b82de08f59de5be5a34e42170",
+    "renderer": "deepseek_v41",
+    "asset_manifest": "models/manifests/deepseek-v4.1-flash.json",
+    "capabilities": {
+      "tools": true,
+      "thinking": true,
+      "content_parts": false
+    }
+  },
+  {
     "profile_id": "kimi-k2.6",
     "aliases": [],
     "repository": "moonshotai/Kimi-K2.6",

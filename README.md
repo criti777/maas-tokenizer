@@ -8,6 +8,7 @@
 - `deepseek-v3.2`
 - `deepseek-v4-flash`（资产：`deepseek-ai/DeepSeek-V4-Flash-0731`）
 - `deepseek-v4-pro`（资产：`deepseek-ai/DeepSeek-V4-Pro-0813`）
+- `deepseek-v4.1-flash`（资产：`deepseek-ai/DeepSeek-V4.1-Flash-1017`；同时接受 `deepseek-ai/DeepSeek-V4.1-Flash` 请求名）
 - `kimi-k2.6`
 - `kimi-k3`
 - `glm-5.1`
@@ -17,7 +18,7 @@
 - `minimax-m2.7`
 - `minimax-m3`
 
-模型资产固定在 `model_assets/<model>/`，包括 tokenizer、chat template 和必要配置，不包括权重。`models/profiles.json` 负责把请求中的模型名统一路由到对应资产和 renderer。DeepSeek V3.2 使用从 vLLM 提取的专用路径；V4 Flash/Pro 使用固定版本的官方 Python 消息编码器；Kimi K3 使用官方 Python XTML 分段渲染；其他模型使用固定的 Hugging Face chat-template 路径。
+模型资产固定在 `model_assets/<model>/`，包括 tokenizer、chat template 和必要配置，不包括权重。`models/profiles.json` 负责把请求中的模型名统一路由到对应资产和 renderer。DeepSeek V3.2 使用从 vLLM 提取的专用路径；V4 Flash/Pro 使用固定版本的官方 Python 消息编码器；V4.1 Flash 使用其固定版本的官方文本编码器；Kimi K3 使用官方 Python XTML 分段渲染；其他模型使用固定的 Hugging Face chat-template 路径。
 
 DS V4 请求仅接受 `deepseek-v4-flash`、`deepseek-v4-pro`（忽略大小写），不接受旧 `deepseek-v4` 或 Hugging Face 仓库名。两者独立加载对应资产，共用新版官方渲染器：思考模式下 `low` 不加前缀，`high`、`max` 使用各自官方前缀；`xhigh` 兼容映射为 `max`，`minimal`/`medium` 映射为 `low`，`none` 关闭思考。损坏的工具参数 JSON 按官方规则保留原文并回退渲染。
 

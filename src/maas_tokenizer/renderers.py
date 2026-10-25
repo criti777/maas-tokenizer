@@ -14,6 +14,7 @@ from transformers import AutoTokenizer
 from vendor.vllm.extracted.chat_utils import parse_chat_messages
 from vendor.vllm.extracted.deepseek_v32_encoding import encode_messages as encode_v32
 from vendor.vllm.extracted.deepseek_v4_encoding import encode_messages as encode_v4
+from vendor.vllm.extracted.deepseek_v41_encoding import encode_messages as encode_v41
 from vendor.vllm.extracted.hf_renderer import render_chat
 
 from .encoders import GigaTokenEncoder, TokenEncoder, TokenIds
@@ -128,7 +129,9 @@ class DeepSeekV32Renderer:
     def render(self, parsed: Any) -> RenderedPrompt:
         conversation = parse_chat_messages(parsed.messages, "string")
         if parsed.tools:
-            conversation.insert(0, {"role": "system", "content": "", "tools": parsed.tools})
+            conversation.insert(
+                0, {"role": "system", "content": "", "tools": parsed.tools}
+            )
         kwargs = parsed.template_kwargs(parsed.tools)
         thinking = bool(kwargs.get("thinking") or kwargs.get("enable_thinking"))
         text = encode_v32(
@@ -152,7 +155,9 @@ class DeepSeekV4Renderer:
             parsed.messages, "string", preserve_tool_arguments=True
         )
         if parsed.tools:
-            conversation.insert(0, {"role": "system", "content": "", "tools": parsed.tools})
+            conversation.insert(
+                0, {"role": "system", "content": "", "tools": parsed.tools}
+            )
         kwargs = parsed.template_kwargs(parsed.tools)
         thinking = bool(kwargs.get("thinking") or kwargs.get("enable_thinking"))
         effort = kwargs.get("reasoning_effort")
@@ -166,6 +171,44 @@ class DeepSeekV4Renderer:
         else:
             effort = None
         text = encode_v4(
+            conversation,
+            thinking_mode="thinking" if thinking else "chat",
+            drop_thinking=bool(kwargs.get("drop_thinking", True)),
+            reasoning_effort=effort,
+        )
+        return RenderedPrompt(text, False)
+
+    def encode(self, parsed: Any) -> TokenIds:
+        return _encode_rendered(self, parsed)
+
+
+class DeepSeekV41Renderer:
+    """Render DeepSeek V4.1 prompts with its pinned official text encoder."""
+
+    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
+        self.template_tokenizer = template_tokenizer
+        self.encoder = encoder
+
+    def render(self, parsed: Any) -> RenderedPrompt:
+        conversation = parse_chat_messages(parsed.messages, "string")
+        if parsed.tools:
+            conversation.insert(
+                0, {"role": "system", "content": "", "tools": parsed.tools}
+            )
+        kwargs = parsed.template_kwargs(parsed.tools)
+        thinking = bool(kwargs.get("thinking") or kwargs.get("enable_thinking"))
+        effort = kwargs.get("reasoning_effort")
+        if effort == "none":
+            thinking, effort = False, None
+        elif isinstance(effort, str):
+            effort = {
+                "minimal": "low",
+                "medium": "high",
+                "xhigh": "max",
+            }.get(effort, effort)
+        elif not isinstance(effort, int):
+            effort = None
+        text = encode_v41(
             conversation,
             thinking_mode="thinking" if thinking else "chat",
             drop_thinking=bool(kwargs.get("drop_thinking", True)),
@@ -249,4 +292,6 @@ def build_renderer(profile: ModelProfile, asset_path: Path) -> Renderer:
         return DeepSeekV32Renderer(tokenizer, encoder)
     if profile.renderer == "deepseek_v4":
         return DeepSeekV4Renderer(tokenizer, encoder)
+    if profile.renderer == "deepseek_v41":
+        return DeepSeekV41Renderer(tokenizer, encoder)
     raise ValueError(f"unknown renderer: {profile.renderer}")

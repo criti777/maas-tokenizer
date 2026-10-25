@@ -1,0 +1,24 @@
+{
+  "files": {
+    "LICENSE": {
+      "sha256": "1c8f573e830ca9b3ebfeb7ace1823146e22b66f99ee223840e7637c9e745e1c7",
+      "size": 1064
+    },
+    "config.json": {
+      "sha256": "8be45ce0476004a3f529fd896115a4a2e800a129ad2d3ec05b16050f52e21879",
+      "size": 3311
+    },
+    "tokenizer.json": {
+      "sha256": "c90dfa01249db1be4245780a052ede752e1361c612ac6d08e2bdada7d599476b",
+      "size": 6367257
+    },
+    "tokenizer_config.json": {
+      "sha256": "6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f50d8547",
+      "size": 801
+    }
+  },
+  "profile_id": "deepseek-v4.1-flash",
+  "repository": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "revision": "1bae0e1088993b9b82de08f59de5be5a34e42170",
+  "schema_version": 1
+}

@@ -36,3 +36,8 @@ validation and reordering optimization). They are stored under
 `model_assets/zai-org--GLM-5.3/`, together with the complete upstream `LICENSE`.
 Template SHA-256: `0e2b6268ac54f04d2bc1157e8cfb896cb66f25c0b5e319ea12e56014c3914f24`.
 All asset checksums and sizes are recorded in `models/manifests/glm-5.3.json`.
+
+
+DeepSeek V4.1 encoding code and tokenizer assets are distributed under the
+MIT License. The upstream license is retained as
+`model_assets/deepseek-ai--DeepSeek-V4.1-Flash-1017/1bae0e1088993b9b82de08f59de5be5a34e42170/LICENSE`.
