@@ -85,12 +85,20 @@ def _normalize_content(content: Any, content_format: ContentFormat) -> Any:
 def parse_chat_messages(
     messages: list[dict[str, Any]], content_format: ContentFormat,
     *, preserve_tool_arguments: bool = False,
+    preserve_tool_result_content: bool = False,
 ) -> list[dict[str, Any]]:
     conversation: list[dict[str, Any]] = []
     for source in messages:
+        preserve_result = preserve_tool_result_content and source["role"] == "tool"
+        content = source.get("content")
+        if preserve_result and content is not None and not isinstance(content, (str, list)):
+            raise ValueError("message content must be a string, array, or null")
         message: dict[str, Any] = {
             "role": source["role"],
-            "content": _normalize_content(source.get("content"), content_format),
+            # GLM-5.3's official template validates/reorders grouped outputs itself.
+            "content": copy.deepcopy(content) if preserve_result else _normalize_content(
+                content, content_format
+            ),
         }
         for key in ("name", "task"):
             if isinstance(source.get(key), str):
@@ -112,7 +120,9 @@ def parse_chat_messages(
         elif source["role"] == "tool":
             if "tool_call_id" in source:
                 message["tool_call_id"] = source["tool_call_id"]
-            if isinstance(message["content"], list) and all(
+            if preserve_result and "id" in source:
+                message["id"] = source["id"]
+            if not preserve_result and isinstance(message["content"], list) and all(
                 isinstance(item, dict) and item.get("type") == "text"
                 for item in message["content"]
             ):

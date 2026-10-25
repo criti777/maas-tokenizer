@@ -40,6 +40,7 @@ def render_chat(
     chat_template: str | None,
     content_format: str,
     template_kwargs: dict[str, Any],
+    preserve_tool_result_content: bool = False,
 ) -> tuple[list[dict[str, Any]], str, str]:
     resolved_template = tokenizer.get_chat_template(chat_template, tools=tools)
     resolved_format = (
@@ -47,7 +48,10 @@ def render_chat(
         if content_format == "auto"
         else content_format
     )
-    conversation = parse_chat_messages(messages, resolved_format)
+    conversation = parse_chat_messages(
+        messages, resolved_format,
+        preserve_tool_result_content=preserve_tool_result_content,
+    )
     if any(message["role"] == "developer" for message in conversation) and not _supports_developer(
         resolved_template
     ):

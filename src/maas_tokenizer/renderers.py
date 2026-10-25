@@ -73,11 +73,13 @@ class HFRenderer:
         encoder: TokenEncoder,
         content_format: str | None = None,
         template_thinking_mode: bool = False,
+        preserve_tool_result_content: bool = False,
     ) -> None:
         self.template_tokenizer = template_tokenizer
         self.encoder = encoder
         self.content_format = content_format
         self.template_thinking_mode = template_thinking_mode
+        self.preserve_tool_result_content = preserve_tool_result_content
 
     @classmethod
     def from_assets(cls, path: Path, profile: ModelProfile) -> "HFRenderer":
@@ -90,6 +92,7 @@ class HFRenderer:
             GigaTokenEncoder.from_assets(path),
             content_format,
             profile.template_thinking_mode,
+            profile.preserve_tool_result_content,
         )
 
     def render(self, parsed: Any) -> RenderedPrompt:
@@ -109,6 +112,7 @@ class HFRenderer:
             chat_template=parsed.chat_template,
             content_format=self.content_format or parsed.chat_template_content_format,
             template_kwargs=template_kwargs,
+            preserve_tool_result_content=self.preserve_tool_result_content,
         )
         return RenderedPrompt(rendered, parsed.add_special_tokens)
 

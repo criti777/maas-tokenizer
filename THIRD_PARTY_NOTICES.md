@@ -28,3 +28,11 @@ The corresponding tokenizer/config assets are pinned to those same revisions
 under `model_assets/deepseek-ai--DeepSeek-V4-Flash-0731/` and
 `model_assets/deepseek-ai--DeepSeek-V4-Pro-0813/`; each asset directory retains
 the upstream `LICENSE`.
+
+GLM-5.3 tokenizer/config assets and the unmodified `chat_template.jinja` are
+distributed by Z.ai in `zai-org/GLM-5.3`, pinned at
+`ba32f8c19c8738e2c57c71798c601d477a7bf844` (2026-10-14 tool-result ID
+validation and reordering optimization). They are stored under
+`model_assets/zai-org--GLM-5.3/`, together with the complete upstream `LICENSE`.
+Template SHA-256: `0e2b6268ac54f04d2bc1157e8cfb896cb66f25c0b5e319ea12e56014c3914f24`.
+All asset checksums and sizes are recorded in `models/manifests/glm-5.3.json`.
