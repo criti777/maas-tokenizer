@@ -13,7 +13,8 @@ from maas_tokenizer.renderers import build_renderer
     [
         pytest.param("deepseek-v3", marks=pytest.mark.model("deepseek-v3")),
         pytest.param("deepseek-v3.2", marks=pytest.mark.model("deepseek-v3.2")),
-        pytest.param("deepseek-v4", marks=pytest.mark.model("deepseek-v4")),
+        pytest.param("deepseek-v4-flash", marks=pytest.mark.model("deepseek-v4-flash")),
+        pytest.param("deepseek-v4-pro", marks=pytest.mark.model("deepseek-v4-pro")),
         pytest.param("kimi-k2.6", marks=pytest.mark.model("kimi-k2.6")),
         pytest.param("glm-5.1", marks=pytest.mark.model("glm-5.1")),
         pytest.param("glm-5.2", marks=pytest.mark.model("glm-5.2")),
