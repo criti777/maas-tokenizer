@@ -41,6 +41,7 @@ python3.11 -m venv .venv
 ```text
 TOKENIZER_QUEUE_SIZE=100
 TOKENIZER_QUEUE_TIMEOUT_MS=200
+TOKENIZER_MAX_EXECUTION_SECONDS=10
 TOKENIZER_LOG_PATH=/opt/cloud/logs/maas-tokenizer/access.log
 TOKENIZER_LOG_MAX_BYTES=104857600
 TOKENIZER_LOG_BACKUP_COUNT=5
@@ -52,7 +53,38 @@ TOKENIZER_RUN_LOG_BACKUP_COUNT=5
 TOKENIZER_RUN_LOG_LEVEL=INFO
 ```
 
-`GET /health` 不进入计算队列，可直接用于 Kubernetes 存活探针。
+### 健康检查与 CCE 自动重启
+
+`GET /health` 不进入计算队列。调度器只记录当前执行任务的单调时钟开始时间，初始和空闲时为 `None`，任务完成或报错后清除。排队请求、客户端停止等待和健康检查不会重置正在执行任务的计时，因此长期没有业务请求不会误判。
+
+默认 `TOKENIZER_MAX_EXECUTION_SECONDS=10`（秒，可配置为正的有限小数；Dockerfile 同样设置默认值）。当前任务持续执行超过此值，或调度器未运行/消费协程停止时，健康接口返回 **HTTP 503**，例如 `{"status":"unhealthy","reason":"execution_timeout"}`；其他情况返回 HTTP 200 和 `{"status":"ok"}`。阈值覆盖任务校验、首次模型加载、渲染、编码和结果调度等待，部署时需为最大合法请求和 CPU 限流留余量。
+
+这是健康判定阈值，不会直接取消计算线程，也不改变排队超时和访问日志的三个延迟字段。由 CCE 的 **HTTP** 探针执行摘流和重启：HTTP 200～399 为成功，503 或响应超时为失败；TCP 探针只检查端口，不能覆盖业务线程卡死。若原生代码长期占住 GIL 导致 `/health` 也无法响应，CCE 从进程外通过 `timeoutSeconds` 判失败。
+
+在容器配置中可采用以下示例（需按环境验证参数）：
+
+```yaml
+startupProbe:
+  httpGet: {path: /health, port: 8080}
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 60
+readinessProbe:
+  httpGet: {path: /health, port: 8080}
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 2
+  successThreshold: 1
+livenessProbe:
+  httpGet: {path: /health, port: 8080}
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+```
+
+startup 成功后才启用另外两种探针；readiness 连续失败 2 次摘流并继续探测，liveness 连续失败 3 次重启容器。通常先摘流再重启，二者独立运行，不保证严格顺序；摘流不会取消已有请求。当前关闭逻辑会等待计算任务，需同时设置合理的 Pod `terminationGracePeriodSeconds`，让卡死进程可在宽限期结束后被强制终止。重启还需等待启动预热，异常重启告警需另在 CCE/AOM 或现有平台配置。运行期首次加载其他模型也受执行阈值影响，不在 startup 保护范围内。
+
+参考：[华为云 CCE 健康检查与 HTTP 状态码规则](https://support.huaweicloud.com/usermanual-cce/cce_10_0112.html)。本功能要求保持单进程部署；多个 Uvicorn worker 的状态不共享。
 
 ## 访问日志
 

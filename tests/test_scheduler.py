@@ -131,6 +131,66 @@ def test_failed_job_exposes_queue_and_processing_timings() -> None:
 
         assert captured.value.queue_wait_ms >= 0
         assert captured.value.process_ms >= 5
+        assert scheduler.active_started_at is None
+
+    asyncio.run(scenario())
+
+
+def test_health_tracks_active_job_not_idle_time_or_cancelled_requests(monkeypatch) -> None:
+    clock = [100.0]
+    monkeypatch.setattr("maas_tokenizer.scheduler.perf_counter", lambda: clock[0])
+
+    async def scenario() -> None:
+        scheduler = SerialScheduler(queue_size=2, queue_timeout_seconds=0.02)
+        assert scheduler.health_failure_reason(max_execution_seconds=10) == "scheduler_not_running"
+        await scheduler.start()
+        release, started = Event(), Event()
+
+        def blocking() -> int:
+            started.set()
+            release.wait(timeout=2)
+            return 1
+
+        try:
+            clock[0] = 1000
+            assert scheduler.active_started_at is None
+            assert scheduler.health_failure_reason(max_execution_seconds=10) is None
+            running = asyncio.create_task(scheduler.submit(blocking))
+            assert await asyncio.to_thread(started.wait, 1)
+            assert scheduler.active_started_at == 1000
+            clock[0] = 1010
+            assert scheduler.health_failure_reason(max_execution_seconds=10) is None
+            clock[0] = 1011
+            with pytest.raises(QueueTimeoutError):
+                await scheduler.submit(lambda: 2)
+            assert scheduler.active_started_at == 1000
+            assert scheduler.health_failure_reason(max_execution_seconds=10) == "execution_timeout"
+            # Cancelling the HTTP waiter must not clear the still-running job.
+            running.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await running
+            assert scheduler.active_started_at == 1000
+        finally:
+            release.set()
+            await scheduler.close()
+        assert scheduler.active_started_at is None
+        assert scheduler.health_failure_reason(max_execution_seconds=10) == "scheduler_not_running"
+
+    asyncio.run(scenario())
+
+
+def test_health_detects_stopped_consumer() -> None:
+    async def scenario() -> None:
+        scheduler = SerialScheduler(queue_size=1, queue_timeout_seconds=1)
+        await scheduler.start()
+        scheduler._consumer.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await scheduler._consumer
+        assert scheduler.health_failure_reason(max_execution_seconds=10) == "scheduler_consumer_stopped"
+        # close() propagates cancellation of an already stopped consumer.
+        with pytest.raises(asyncio.CancelledError):
+            await scheduler.close()
+        scheduler._executor.shutdown(wait=True)
 
     asyncio.run(scenario())
 
