@@ -1,0 +1,2 @@
+GitHub write and main-branch merge permission test.
+Created at the repository owner's request on 2026-10-25.
