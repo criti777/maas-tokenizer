@@ -325,7 +325,7 @@ def test_health_reports_blocked_job_and_recovers_after_completion(
             clock[0] = 111
             for _ in range(2):
                 health = test_client.get("/health")
-                assert health.status_code == 503
+                assert health.status_code == 504
                 assert health.json() == {"status": "unhealthy", "reason": "execution_timeout"}
             assert not response.done()
             assert app.state.scheduler.active_started_at == 100
@@ -335,6 +335,14 @@ def test_health_reports_blocked_job_and_recovers_after_completion(
     assert app.state.scheduler.active_started_at is None
     clock[0] = 10000
     assert test_client.get("/health").json() == {"status": "ok"}
+
+
+def test_health_keeps_503_for_scheduler_not_running(client) -> None:
+    test_client = client[0]
+    test_client.portal.call(app.state.scheduler.close)
+    response = test_client.get("/health")
+    assert response.status_code == 503
+    assert response.json() == {"status": "unhealthy", "reason": "scheduler_not_running"}
 
 
 def test_execution_timeout_can_be_configured(tmp_path, monkeypatch) -> None:

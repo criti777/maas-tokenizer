@@ -76,7 +76,7 @@ uvicorn.Server(uvicorn.Config(api.app, log_level='warning', access_log=False)).r
             # Client timeout must not clear the still-running computation's health state.
             with pytest.raises(urllib.error.HTTPError) as failure:
                 urllib.request.urlopen(url, timeout=2)
-            assert failure.value.code == 503
+            assert failure.value.code == 504
             assert json.load(failure.value)['reason'] == 'execution_timeout'
             failure.value.close()
 
@@ -97,7 +97,7 @@ uvicorn.Server(uvicorn.Config(api.app, log_level='warning', access_log=False)).r
             os.kill(process.pid, signal.SIGCONT)
             with pytest.raises(urllib.error.HTTPError) as resumed:
                 urllib.request.urlopen(url, timeout=2)
-            assert resumed.value.code == 503
+            assert resumed.value.code == 504
             resumed.value.close()
         finally:
             if process.poll() is None:

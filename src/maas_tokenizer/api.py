@@ -278,7 +278,7 @@ async def health(request: Request):
     )
     if reason is not None:
         return JSONResponse(
-            status_code=503,
+            status_code=504 if reason == "execution_timeout" else 503,
             content={"status": "unhealthy", "reason": reason},
         )
     return {"status": "ok"}
