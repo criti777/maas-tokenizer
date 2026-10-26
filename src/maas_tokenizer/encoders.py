@@ -24,8 +24,18 @@ class GigaTokenEncoder:
         self.tokenizer = tokenizer
 
     @classmethod
-    def from_assets(cls, asset_path: Path) -> "GigaTokenEncoder":
-        return cls(gt.Tokenizer(str(asset_path)))
+    def from_assets(
+        cls, asset_path: Path, *, max_cache_bytes: int | None = None
+    ) -> "GigaTokenEncoder":
+        if max_cache_bytes is None:
+            return cls(gt.Tokenizer(str(asset_path)))
+
+        previous = gt.get_max_cache_bytes()
+        gt.set_max_cache_bytes(max_cache_bytes)
+        try:
+            return cls(gt.Tokenizer(str(asset_path)))
+        finally:
+            gt.set_max_cache_bytes(previous)
 
     def encode(self, text: str, *, add_special_tokens: bool) -> TokenIds:
         # The string-rendered tokenizers have no encode-time post-processor, so

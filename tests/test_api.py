@@ -363,7 +363,7 @@ def test_startup_rejects_invalid_execution_timeout(tmp_path, monkeypatch, value)
             pass
 
 
-def test_startup_warms_glm_5_2_before_serving(tmp_path, monkeypatch) -> None:
+def test_startup_warms_all_non_minimax_models_before_serving(tmp_path, monkeypatch) -> None:
     calls: list[Mapping[str, Any]] = []
     monkeypatch.setenv("TOKENIZER_LOG_PATH", str(tmp_path / "access.log"))
     monkeypatch.setattr(
@@ -373,11 +373,12 @@ def test_startup_warms_glm_5_2_before_serving(tmp_path, monkeypatch) -> None:
 
     with TestClient(app):
         assert calls == [
-            {
-                "model": "glm-5.2",
-                "messages": [{"role": "user", "content": "warmup"}],
-            }
+            {"model": model, "messages": [{"role": "user", "content": "warmup"}]}
+            for model in api_module._WARMUP_MODELS
         ]
+        assert len(calls) == 11
+        assert "minimax-m2.7" not in {request["model"] for request in calls}
+        assert "minimax-m3" not in {request["model"] for request in calls}
 
 
 class WarmupFailingScheduler:

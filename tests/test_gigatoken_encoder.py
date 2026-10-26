@@ -3,9 +3,41 @@ from pathlib import Path
 import pytest
 
 from maas_tokenizer.assets import verify_asset_directory
+from maas_tokenizer.encoders import GigaTokenEncoder
+import maas_tokenizer.encoders as encoders_module
 from maas_tokenizer.protocol import ChatCompletionRequest
 from maas_tokenizer.registry import ModelRegistry
 from maas_tokenizer.renderers import build_renderer
+
+
+def test_cache_budget_applies_at_construction_and_restores_global_setting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = 512 << 20
+    created: list[tuple[str, int]] = []
+
+    def set_budget(value: int) -> None:
+        nonlocal current
+        current = value
+
+    def construct(path: str) -> object:
+        created.append((path, current))
+        return object()
+
+    monkeypatch.setattr(encoders_module.gt, "get_max_cache_bytes", lambda: current)
+    monkeypatch.setattr(encoders_module.gt, "set_max_cache_bytes", set_budget)
+    monkeypatch.setattr(encoders_module.gt, "Tokenizer", construct)
+    GigaTokenEncoder.from_assets(Path("kimi-k2.6"), max_cache_bytes=256 << 20)
+    assert created == [("kimi-k2.6", 256 << 20)]
+    assert current == 512 << 20
+
+    def fail(_path: str) -> object:
+        raise RuntimeError("failed to load")
+
+    monkeypatch.setattr(encoders_module.gt, "Tokenizer", fail)
+    with pytest.raises(RuntimeError, match="failed to load"):
+        GigaTokenEncoder.from_assets(Path("kimi-k3"), max_cache_bytes=256 << 20)
+    assert current == 512 << 20
 
 
 @pytest.mark.parametrize(

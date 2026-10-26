@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from vendor.vllm.extracted.chat_utils import InvalidToolArgumentsError
 
 from .assets import verify_asset_directory
+from .encoders import GigaTokenEncoder
 from .errors import RequestProcessingError
 from .protocol import ChatCompletionRequest
 from .registry import ModelProfile, ModelRegistry
@@ -35,6 +36,18 @@ _TEXT_CONTENT_TYPES = {
 }
 _DROP_PART = object()
 _RUN_LOGGER = logging.getLogger("maas_tokenizer.run")
+_MIB = 1 << 20
+_ENCODER_GROUPS = {
+    **{model: ("glm", "glm-5.2", 512 * _MIB) for model in (
+        "glm-5.1", "glm-5.2", "glm-5.3", "glm-5.3-flash"
+    )},
+    **{model: ("deepseek", "deepseek-v4.1-flash", 512 * _MIB) for model in (
+        "deepseek-v3", "deepseek-v3.2", "deepseek-v4-flash",
+        "deepseek-v4-pro", "deepseek-v4.1-flash"
+    )},
+    "kimi-k2.6": ("kimi-k2.6", "kimi-k2.6", 256 * _MIB),
+    "kimi-k3": ("kimi-k3", "kimi-k3", 256 * _MIB),
+}
 
 
 def _strip_multimodal_payload(value: Any) -> Any:
@@ -115,6 +128,7 @@ class TokenCountService:
         self.assets_root = assets_root
         self.registry = ModelRegistry.from_file(registry_path)
         self._renderers: dict[str, Renderer] = {}
+        self._encoders: dict[str, GigaTokenEncoder] = {}
         self._locks: dict[str, Lock] = {}
         self._locks_guard = Lock()
 
@@ -135,7 +149,8 @@ class TokenCountService:
             if renderer is None:
                 started_at = perf_counter()
                 asset_path = verify_asset_directory(profile, self.assets_root)
-                renderer = build_renderer(profile, asset_path)
+                encoder = self._encoder_for(profile, asset_path)
+                renderer = build_renderer(profile, asset_path, encoder=encoder)
                 self._renderers[profile.profile_id] = renderer
                 _RUN_LOGGER.info(
                     "event=model_loaded|profile_id=%s|duration_ms=%.2f",
@@ -143,6 +158,25 @@ class TokenCountService:
                     (perf_counter() - started_at) * 1000,
                 )
             return renderer
+
+    def _encoder_for(
+        self, profile: ModelProfile, asset_path: Path
+    ) -> GigaTokenEncoder | None:
+        group = _ENCODER_GROUPS.get(profile.profile_id)
+        if group is None:
+            return None  # MiniMax retains its independent, default-budget encoder.
+        group_id, source_id, max_cache_bytes = group
+        encoder = self._encoders.get(group_id)
+        if encoder is None:
+            source_path = asset_path
+            if source_id != profile.profile_id:
+                source = self.registry.resolve(source_id)
+                source_path = verify_asset_directory(source, self.assets_root)
+            encoder = GigaTokenEncoder.from_assets(
+                source_path, max_cache_bytes=max_cache_bytes
+            )
+            self._encoders[group_id] = encoder
+        return encoder
 
     def count(self, request: Mapping[str, Any]) -> int:
         model = request.get("model")
