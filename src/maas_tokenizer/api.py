@@ -34,10 +34,12 @@ from .run_logging import (
 
 
 _service = TokenCountService()
-_WARMUP_REQUEST: dict[str, Any] = {
-    "model": "glm-5.2",
-    "messages": [{"role": "user", "content": "warmup"}],
-}
+_WARMUP_MODELS = (
+    "glm-5.2", "glm-5.1", "glm-5.3", "glm-5.3-flash",
+    "deepseek-v4.1-flash", "deepseek-v3", "deepseek-v3.2",
+    "deepseek-v4-flash", "deepseek-v4-pro",
+    "kimi-k2.6", "kimi-k3",
+)
 
 
 def _positive_int(name: str, default: int) -> int:
@@ -78,13 +80,25 @@ async def lifespan(application: FastAPI):
         application.state.access_log_config = access_log_config
         application.state.run_logger = run_logger
         await scheduler.start()
-        warmup_started = perf_counter()
-        run_logger.info("event=warmup_started|model=glm-5.2")
-        await scheduler.submit(lambda: _service.count(_WARMUP_REQUEST))
-        run_logger.info(
-            "event=warmup_succeeded|model=glm-5.2|duration_ms=%.2f",
-            (perf_counter() - warmup_started) * 1000,
-        )
+        for model in _WARMUP_MODELS:
+            warmup_started = perf_counter()
+            run_logger.info("event=warmup_started|model=%s", model)
+            warmup_request = {
+                "model": model,
+                "messages": [{"role": "user", "content": "warmup"}],
+            }
+            try:
+                await scheduler.submit(
+                    lambda request=warmup_request: _service.count(request)
+                )
+            except Exception:
+                run_logger.exception("event=warmup_failed|model=%s", model)
+                raise
+            run_logger.info(
+                "event=warmup_succeeded|model=%s|duration_ms=%.2f",
+                model,
+                (perf_counter() - warmup_started) * 1000,
+            )
         run_logger.info("event=service_ready")
         yield
     except BaseException:

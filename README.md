@@ -36,7 +36,7 @@ python3.11 -m venv .venv
 .venv/bin/python -m maas_tokenizer.main
 ```
 
-服务启动阶段会通过正式计数链路预热 `glm-5.2`，预热成功后才开始接收流量；其他模型第一次收到请求时才校验并加载其 tokenizer/template。所有已加载模型之后都在进程内按 profile 缓存。
+服务启动阶段通过正式计数链路依次预热 GLM 四个、DeepSeek 五个、Kimi 两个模型（每个模型发送一条简单 user 消息）；全部成功后才开始接收流量。两个 MiniMax 模型仍在首次请求时加载。各模型保留自己的聊天模板和 renderer，最终 encode 共用四个 Gigatoken 对象：GLM 四个使用 GLM-5.2 资产（512 MiB 缓存预算），DeepSeek 五个使用 DeepSeek-V4.1-Flash 资产（512 MiB），Kimi K2.6 和 K3 各用自己的资产（各 256 MiB）。跨 DeepSeek 版本共享编码器可能改变原来的 token 计数，这是本方案接受的取舍。缓存预算作用于新建的单个编码器，并非 Pod 总内存上限。
 
 生产部署必须保持 `--workers 1`。每个 Pod 内只有一个计算线程串行执行 tokenizer 请求；多 worker 会各自创建队列和缓存，无法保证 Pod 级串行。
 
@@ -90,7 +90,7 @@ livenessProbe:
   failureThreshold: 3
 ```
 
-startup 成功后才启用另外两种探针；readiness 连续失败 2 次摘流并继续探测，liveness 连续失败 3 次重启容器。通常先摘流再重启，二者独立运行，不保证严格顺序；摘流不会取消已有请求。当前关闭逻辑会等待计算任务，需同时设置合理的 Pod `terminationGracePeriodSeconds`，让卡死进程可在宽限期结束后被强制终止。重启还需等待启动预热，异常重启告警需另在 CCE/AOM 或现有平台配置。运行期首次加载其他模型也受执行阈值影响，不在 startup 保护范围内。
+startup 成功后才启用另外两种探针；readiness 连续失败 2 次摘流并继续探测，liveness 连续失败 3 次重启容器。通常先摘流再重启，二者独立运行，不保证严格顺序；摘流不会取消已有请求。当前关闭逻辑会等待计算任务，需同时设置合理的 Pod `terminationGracePeriodSeconds`，让卡死进程可在宽限期结束后被强制终止。重启还需等待全部 11 个模型的启动预热，startup 探针宽限时间需覆盖其总耗时；异常重启告警需另在 CCE/AOM 或现有平台配置。运行期首次加载 MiniMax 模型仍受执行阈值影响，不在 startup 保护范围内。
 
 参考：[华为云 CCE 健康检查与 HTTP 状态码规则](https://support.huaweicloud.com/usermanual-cce/cce_10_0112.html)。本功能要求保持单进程部署；多个 Uvicorn worker 的状态不共享。
 
@@ -124,7 +124,7 @@ timestamp|x_span_id|x_request_id|model|content_length|prompt_tokens|error_code|e
 
 ## 运行日志
 
-服务生命周期、GLM-5.2 预热、模型首次加载、内部 500 异常栈和调度器消费协程异常写入 `TOKENIZER_RUN_LOG_PATH`。run.log 使用 `Asia/Shanghai` 时间、日志级别和单行事件格式；异常 traceback 中的换行会编码为 `\\n`。已知的请求校验、未知模型和限流等预期错误只记录在 access.log，避免重复日志。
+服务生命周期、各模型启动预热、模型首次加载、内部 500 异常栈和调度器消费协程异常写入 `TOKENIZER_RUN_LOG_PATH`。run.log 使用 `Asia/Shanghai` 时间、日志级别和单行事件格式；异常 traceback 中的换行会编码为 `\\n`。已知的请求校验、未知模型和限流等预期错误只记录在 access.log，避免重复日志。
 
 生产入口会把 Uvicorn、Python 根日志和 warnings 一并导入 run.log，并关闭 Uvicorn 逐请求日志。access.log 和 run.log 都只写轮转文件，不输出到 stdout/stderr。run.log 默认单文件 100 MB，保留 5 份。
 
@@ -201,7 +201,7 @@ src/maas_tokenizer/api.py
 - `access_logging.py`：轮转文件访问日志；
 - `run_logging.py`：服务运行日志、异常栈和 Uvicorn 文件日志；
 - `service.py`：统一处理流程、模型级懒加载和线程安全缓存；
-- `registry.py`：严格解析十个固定 profile，不做未知模型回退；
+- `registry.py`：严格解析十三个固定 profile，不做未知模型回退；
 - `assets.py`：加载前检查所需本地资产；
 - `protocol.py`：OpenAI 风格请求结构；
 - `renderers.py`：按 profile 分派 HF、DeepSeek V3.2、DeepSeek V4 或 Kimi K3 路径；
@@ -229,7 +229,7 @@ src/maas_tokenizer/api.py
 .venv/bin/pytest --model glm-5.2
 ```
 
-验证全部十个 profile 并检查流水线覆盖率门禁：
+验证全部十三个 profile 并检查流水线覆盖率门禁：
 
 ```bash
 .venv/bin/pytest --model all \

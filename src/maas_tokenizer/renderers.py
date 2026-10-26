@@ -83,14 +83,16 @@ class HFRenderer:
         self.preserve_tool_result_content = preserve_tool_result_content
 
     @classmethod
-    def from_assets(cls, path: Path, profile: ModelProfile) -> "HFRenderer":
+    def from_assets(
+        cls, path: Path, profile: ModelProfile, encoder: TokenEncoder | None = None
+    ) -> "HFRenderer":
         tokenizer = _load_tokenizer(
             path, trust_remote_code=profile.trust_remote_code
         )
         content_format = "openai" if profile.capabilities.get("content_parts") else None
         return cls(
             tokenizer,
-            GigaTokenEncoder.from_assets(path),
+            encoder if encoder is not None else GigaTokenEncoder.from_assets(path),
             content_format,
             profile.template_thinking_mode,
             profile.preserve_tool_result_content,
@@ -233,11 +235,16 @@ class KimiK3Renderer:
         self._special_tokens = tuple(template_tokenizer.special_tokens)
 
     @classmethod
-    def from_assets(cls, path: Path, profile: ModelProfile) -> "KimiK3Renderer":
+    def from_assets(
+        cls, path: Path, profile: ModelProfile, encoder: TokenEncoder | None = None
+    ) -> "KimiK3Renderer":
         tokenizer = _load_tokenizer(
             path, trust_remote_code=profile.trust_remote_code
         )
-        return cls(tokenizer, GigaTokenEncoder.from_assets(path))
+        return cls(
+            tokenizer,
+            encoder if encoder is not None else GigaTokenEncoder.from_assets(path),
+        )
 
     def encode(self, parsed: Any) -> TokenIds:
         kwargs = parsed.template_kwargs(parsed.tools)
@@ -281,13 +288,16 @@ class KimiK3Renderer:
         return token_ids
 
 
-def build_renderer(profile: ModelProfile, asset_path: Path) -> Renderer:
+def build_renderer(
+    profile: ModelProfile, asset_path: Path, *, encoder: TokenEncoder | None = None
+) -> Renderer:
     if profile.renderer == "hf":
-        return HFRenderer.from_assets(asset_path, profile)
+        return HFRenderer.from_assets(asset_path, profile, encoder)
     if profile.renderer == "kimi_k3":
-        return KimiK3Renderer.from_assets(asset_path, profile)
+        return KimiK3Renderer.from_assets(asset_path, profile, encoder)
     tokenizer = AutoTokenizer.from_pretrained(asset_path, local_files_only=True)
-    encoder = GigaTokenEncoder.from_assets(asset_path)
+    if encoder is None:
+        encoder = GigaTokenEncoder.from_assets(asset_path)
     if profile.renderer == "deepseek_v32":
         return DeepSeekV32Renderer(tokenizer, encoder)
     if profile.renderer == "deepseek_v4":

@@ -94,6 +94,32 @@ def test_deepseek_v41_flash_counts_reasoning_effort_and_tools() -> None:
     ) == 256
 
 
+@pytest.mark.model("deepseek-v4.1-flash")
+def test_deepseek_v41_flash_handles_tool_result_with_shared_encoder() -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {
+        "model": "deepseek-v4.1-flash",
+        "thinking": True,
+        "messages": [
+            {"role": "user", "content": "Weather in Paris?"},
+            {
+                "role": "assistant", "content": "", "reasoning_content": "Use weather tool.",
+                "tool_calls": [{
+                    "id": "call_1", "type": "function",
+                    "function": {"name": "weather", "arguments": '{"city":"Paris"}'},
+                }],
+            },
+            {"role": "tool", "tool_call_id": "call_1", "content": "Sunny"},
+            {"role": "user", "content": "Summarize briefly."},
+        ],
+    }
+    renderer = service._renderer_for(service.registry.resolve(request["model"]))
+    parsed = ChatCompletionRequest.model_validate(normalize_compatibility_fields(request))
+    prompt = renderer.render(parsed).text
+    assert "weather" in prompt and "Sunny" in prompt
+    assert service.count(request) > 0
+
+
 @pytest.mark.parametrize(
     "profile",
     [
