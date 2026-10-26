@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from collections import deque
+from functools import lru_cache
 
 import jinja2
 import jinja2.nodes
@@ -42,6 +43,7 @@ def _related_names(root: jinja2.nodes.Template, initial: str) -> list[str]:
     return names
 
 
+@lru_cache(maxsize=128)
 def detect_content_format(chat_template: str) -> str:
     try:
         import transformers.utils.chat_template_utils as hf_chat_utils
