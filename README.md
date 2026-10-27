@@ -36,21 +36,21 @@ python3.11 -m venv .venv
 .venv/bin/python -m maas_tokenizer.main
 ```
 
-服务启动阶段通过正式计数链路依次预热 GLM 四个、DeepSeek 五个、Kimi 两个模型（每个模型发送一条简单 user 消息）；全部成功后才开始接收流量。两个 MiniMax 模型仍在首次请求时加载。各模型保留自己的聊天模板和 renderer，最终 encode 共用四个 Gigatoken 对象：GLM 四个使用 GLM-5.2 资产（512 MiB 缓存预算），DeepSeek 五个使用 DeepSeek-V4.1-Flash 资产（512 MiB），Kimi K2.6 和 K3 各用自己的资产（各 256 MiB）。跨 DeepSeek 版本共享编码器可能改变原来的 token 计数，这是本方案接受的取舍。缓存预算作用于新建的单个编码器，并非 Pod 总内存上限。
+服务启动阶段通过正式计数链路依次预热 GLM 四个、DeepSeek 五个、Kimi 两个模型（每个模型发送一条简单 user 消息）；全部成功后才开始接收流量。两个 MiniMax 模型仍在首次请求时加载。各模型保留自己的聊天模板和 renderer，最终 encode 共用四个 Gigatoken 对象：GLM 四个使用 GLM-5.2 资产（512 MiB 缓存预算），DeepSeek 五个使用 DeepSeek-V4.1-Flash 资产（512 MiB），Kimi K2.6 和 K3 各用自己的资产（各 256 MiB）。跨 DeepSeek 版本共享编码器可能改变原来的 token 计数，这是本方案接受的取舍。缓存预算作用于新建的单个编码器，并非进程总内存上限。
 
 走 Hugging Face chat-template 路径的模型各自加载模板 tokenizer，用它渲染提示词文本（`tokenize=False`），再由 Gigatoken 编码。DeepSeek V3.2、V4 Flash/Pro 和 V4.1 Flash 使用专用文本渲染器，不加载未使用的 Hugging Face tokenizer；DeepSeek V3 仍走 Hugging Face 模板路径。自动判断模板内容格式时，判断结果按实际模板文本在进程内缓存，最多保留 128 份；这与 Gigatoken 的编码缓存相互独立。
 
-生产部署必须保持 `--workers 1`。每个 Pod 内只有一个计算线程串行执行 tokenizer 请求；多 worker 会各自创建队列和缓存，无法保证 Pod 级串行。
+运行服务时保持 `--workers 1`。每个进程只有一个计算线程串行执行 tokenizer 请求；多 worker 会各自创建队列和缓存，无法保证进程间串行。
 
-## Pod 内排队与限流
+## 请求队列与限流
 
-`/tokenizer` 使用有界 FIFO 队列。默认最多有 1 个请求执行、100 个请求等待：队列已满时立即返回 `429 queue_full`；请求排队 200 毫秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。该超时只限制开始执行前的排队时间，不限制已经开始的模板渲染和 tokenizer encode。FastAPI 在请求入队前已经读取并解析 JSON 正文；队列长度与等待超时不限制请求体大小或入队前的内存占用，大请求需在入口另设大小限制。
+`/tokenizer` 使用有界 FIFO 队列，1 个请求执行。当前运行配置允许 2 个请求等待；队列已满时返回 `429 queue_full`，入队后等待超过 50 毫秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。等待时间从入队开始计算，不限制已开始的模板渲染和 tokenizer encode。FastAPI 在请求入队前已经读取并解析 JSON 正文；队列配置不限制请求体大小或入队前的内存占用。
 
-配置项：
+以下展示当前使用的队列值；其余配置项为代码默认值。队列值由环境变量传入，未设置时仍默认 100 个等待位和 200 毫秒。
 
 ```text
-TOKENIZER_QUEUE_SIZE=100
-TOKENIZER_QUEUE_TIMEOUT_MS=200
+TOKENIZER_QUEUE_SIZE=2
+TOKENIZER_QUEUE_TIMEOUT_MS=50
 TOKENIZER_MAX_EXECUTION_SECONDS=10
 TOKENIZER_LOG_PATH=/opt/cloud/logs/maas-tokenizer/access.log
 TOKENIZER_LOG_MAX_BYTES=104857600
@@ -63,38 +63,17 @@ TOKENIZER_RUN_LOG_BACKUP_COUNT=5
 TOKENIZER_RUN_LOG_LEVEL=INFO
 ```
 
-### 健康检查与 CCE 自动重启
+### `GET /health`
 
-`GET /health` 不进入计算队列。调度器只记录当前执行任务的单调时钟开始时间，初始和空闲时为 `None`，任务完成或报错后清除。排队请求、客户端停止等待和健康检查不会重置正在执行任务的计时，因此长期没有业务请求不会误判。
+`GET /health` 不进入计算队列，也不加载模型。调度器记录当前正在执行任务的单调时钟开始时间，空闲时为 `None`，任务完成或报错后清除；等待队列里的请求不计入执行时长。
 
-默认 `TOKENIZER_MAX_EXECUTION_SECONDS=10`（秒，可配置为正的有限小数；Dockerfile 同样设置默认值）。当前任务持续执行超过此值时，健康接口返回 **HTTP 504** 和 `{"status":"unhealthy","reason":"execution_timeout"}`；调度器未运行或消费协程停止时返回 **HTTP 503**；正常情况返回 HTTP 200 和 `{"status":"ok"}`。阈值覆盖任务校验、首次模型加载、渲染、编码和结果调度等待，部署时需为最大合法请求和 CPU 限流留余量。
+接口只读取调度器状态并返回：
 
-这是健康判定阈值，不会直接取消计算线程，也不改变排队超时和访问日志的三个延迟字段。由 CCE 的 **HTTP** 探针执行摘流和重启：HTTP 200～399 为成功，503、504 或响应超时为失败；TCP 探针只检查端口，不能覆盖业务线程卡死。若原生代码长期占住 GIL 导致 `/health` 也无法响应，CCE 从进程外通过 `timeoutSeconds` 判失败。
+- 调度器正常且没有超时任务：HTTP 200，`{"status":"ok"}`。
+- 调度器未运行或已关闭：HTTP 503，`{"status":"unhealthy","reason":"scheduler_not_running"}`；消费协程意外停止则返回 `scheduler_consumer_stopped`。
+- 当前执行任务超过 `TOKENIZER_MAX_EXECUTION_SECONDS`（默认 10 秒）：HTTP 504，`{"status":"unhealthy","reason":"execution_timeout"}`。
 
-在容器配置中可采用以下示例（需按环境验证参数）：
-
-```yaml
-startupProbe:
-  httpGet: {path: /health, port: 8080}
-  periodSeconds: 5
-  timeoutSeconds: 2
-  failureThreshold: 60
-readinessProbe:
-  httpGet: {path: /health, port: 8080}
-  periodSeconds: 5
-  timeoutSeconds: 2
-  failureThreshold: 2
-  successThreshold: 1
-livenessProbe:
-  httpGet: {path: /health, port: 8080}
-  periodSeconds: 5
-  timeoutSeconds: 2
-  failureThreshold: 3
-```
-
-startup 成功后才启用另外两种探针；readiness 连续失败 2 次摘流并继续探测，liveness 连续失败 3 次重启容器。通常先摘流再重启，二者独立运行，不保证严格顺序；摘流不会取消已有请求。当前关闭逻辑会等待计算任务，需同时设置合理的 Pod `terminationGracePeriodSeconds`，让卡死进程可在宽限期结束后被强制终止。重启还需等待全部 11 个模型的启动预热，startup 探针宽限时间需覆盖其总耗时；异常重启告警需另在 CCE/AOM 或现有平台配置。运行期首次加载 MiniMax 模型仍受执行阈值影响，不在 startup 保护范围内。
-
-参考：[华为云 CCE 健康检查与 HTTP 状态码规则](https://support.huaweicloud.com/usermanual-cce/cce_10_0112.html)。本功能要求保持单进程部署；多个 Uvicorn worker 的状态不共享。
+执行阈值覆盖已经开始的请求校验、首次模型加载、渲染和编码，不包含排队等待。`/health` 只报告状态，不取消当前计算，也不改变队列超时；空闲或仅有等待请求时不会因执行时长返回 504。
 
 ## 访问日志
 
@@ -122,7 +101,7 @@ timestamp|x_span_id|x_request_id|model|content_length|prompt_tokens|error_code|e
 2026-08-25 15:30:15.126|span-123|request-456|glm-5.2|82||queue_full|tokenizer queue is full|429|0.00|0.00|1.28
 ```
 
-默认日志文件达到 100 MB 后轮转并保留 5 份。容器运行用户必须能够创建和写入 `/opt/cloud/logs`；在 CCE 中应把日志卷挂载到该目录并赋予 UID/GID 1000 写权限。
+默认日志文件达到 100 MB 后轮转并保留 5 份。运行用户需要能够创建和写入配置的日志目录。
 
 ## 运行日志
 
@@ -181,7 +160,7 @@ Thinking 开关兼容布尔形式、旧字段和对象形式：
 - `404`：模型未登记；
 - `422`：请求体不是合法 JSON/对象；
 - `501`：该多模态请求需要实际 processor；
-- `429`：Pod 等待队列已满或排队超过 200 毫秒（默认值）；
+- `429`：等待队列已满或排队超过配置的等待时间（当前 50 毫秒）；
 - `500`：本地模型资产完整性异常或内部错误。
 
 ## 代码链路
