@@ -34,7 +34,6 @@ class RenderedPrompt:
 
 
 class Renderer(Protocol):
-    template_tokenizer: Any
     encoder: TokenEncoder
 
     def encode(self, parsed: Any) -> TokenIds: ...
@@ -124,8 +123,7 @@ class HFRenderer:
 
 
 class DeepSeekV32Renderer:
-    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
-        self.template_tokenizer = template_tokenizer
+    def __init__(self, encoder: TokenEncoder) -> None:
         self.encoder = encoder
 
     def render(self, parsed: Any) -> RenderedPrompt:
@@ -148,8 +146,7 @@ class DeepSeekV32Renderer:
 
 
 class DeepSeekV4Renderer:
-    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
-        self.template_tokenizer = template_tokenizer
+    def __init__(self, encoder: TokenEncoder) -> None:
         self.encoder = encoder
 
     def render(self, parsed: Any) -> RenderedPrompt:
@@ -187,8 +184,7 @@ class DeepSeekV4Renderer:
 class DeepSeekV41Renderer:
     """Render DeepSeek V4.1 prompts with its pinned official text encoder."""
 
-    def __init__(self, template_tokenizer: Any, encoder: TokenEncoder) -> None:
-        self.template_tokenizer = template_tokenizer
+    def __init__(self, encoder: TokenEncoder) -> None:
         self.encoder = encoder
 
     def render(self, parsed: Any) -> RenderedPrompt:
@@ -295,13 +291,13 @@ def build_renderer(
         return HFRenderer.from_assets(asset_path, profile, encoder)
     if profile.renderer == "kimi_k3":
         return KimiK3Renderer.from_assets(asset_path, profile, encoder)
-    tokenizer = AutoTokenizer.from_pretrained(asset_path, local_files_only=True)
+    specialized = {
+        "deepseek_v32": DeepSeekV32Renderer,
+        "deepseek_v4": DeepSeekV4Renderer,
+        "deepseek_v41": DeepSeekV41Renderer,
+    }.get(profile.renderer)
+    if specialized is None:
+        raise ValueError(f"unknown renderer: {profile.renderer}")
     if encoder is None:
         encoder = GigaTokenEncoder.from_assets(asset_path)
-    if profile.renderer == "deepseek_v32":
-        return DeepSeekV32Renderer(tokenizer, encoder)
-    if profile.renderer == "deepseek_v4":
-        return DeepSeekV4Renderer(tokenizer, encoder)
-    if profile.renderer == "deepseek_v41":
-        return DeepSeekV41Renderer(tokenizer, encoder)
-    raise ValueError(f"unknown renderer: {profile.renderer}")
+    return specialized(encoder)
