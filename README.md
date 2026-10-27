@@ -38,11 +38,13 @@ python3.11 -m venv .venv
 
 服务启动阶段通过正式计数链路依次预热 GLM 四个、DeepSeek 五个、Kimi 两个模型（每个模型发送一条简单 user 消息）；全部成功后才开始接收流量。两个 MiniMax 模型仍在首次请求时加载。各模型保留自己的聊天模板和 renderer，最终 encode 共用四个 Gigatoken 对象：GLM 四个使用 GLM-5.2 资产（512 MiB 缓存预算），DeepSeek 五个使用 DeepSeek-V4.1-Flash 资产（512 MiB），Kimi K2.6 和 K3 各用自己的资产（各 256 MiB）。跨 DeepSeek 版本共享编码器可能改变原来的 token 计数，这是本方案接受的取舍。缓存预算作用于新建的单个编码器，并非 Pod 总内存上限。
 
+走 Hugging Face chat-template 路径的模型各自加载模板 tokenizer，用它渲染提示词文本（`tokenize=False`），再由 Gigatoken 编码。DeepSeek V3.2、V4 Flash/Pro 和 V4.1 Flash 使用专用文本渲染器，不加载未使用的 Hugging Face tokenizer；DeepSeek V3 仍走 Hugging Face 模板路径。自动判断模板内容格式时，判断结果按实际模板文本在进程内缓存，最多保留 128 份；这与 Gigatoken 的编码缓存相互独立。
+
 生产部署必须保持 `--workers 1`。每个 Pod 内只有一个计算线程串行执行 tokenizer 请求；多 worker 会各自创建队列和缓存，无法保证 Pod 级串行。
 
 ## Pod 内排队与限流
 
-`/tokenizer` 使用有界 FIFO 队列。默认最多有 1 个请求执行、100 个请求等待：队列已满时立即返回 `429 queue_full`；请求排队 200 毫秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。该超时只限制开始执行前的排队时间，不限制已经开始的模板渲染和 tokenizer encode。
+`/tokenizer` 使用有界 FIFO 队列。默认最多有 1 个请求执行、100 个请求等待：队列已满时立即返回 `429 queue_full`；请求排队 200 毫秒仍未开始执行时返回 `429 queue_timeout`。两种响应都包含 `Retry-After: 1`，超时任务不会在后台继续计算。该超时只限制开始执行前的排队时间，不限制已经开始的模板渲染和 tokenizer encode。FastAPI 在请求入队前已经读取并解析 JSON 正文；队列长度与等待超时不限制请求体大小或入队前的内存占用，大请求需在入口另设大小限制。
 
 配置项：
 
@@ -190,9 +192,10 @@ src/maas_tokenizer/api.py
   -> registry.py + models/profiles.json
   -> assets.py + models/manifests/ + model_assets/
   -> renderers.py
-       -> vendor/vllm/extracted/（vLLM 规范化/专用 renderer）
-       -> AutoTokenizer（模板渲染）+ Gigatoken（encode）
-       -> Kimi K3 官方 XTML segments + 分段 encode
+       -> HF 模板模型：AutoTokenizer 渲染文本（不在此步 tokenize）
+       -> DeepSeek 专用模型：专用文本渲染路径（不加载 HF tokenizer）
+       -> Kimi K3：官方 XTML 分段渲染与特殊片段处理
+       -> Gigatoken 编码渲染结果（Kimi K3 特殊片段按其专用规则处理）
   -> len(token_ids)
 ```
 
@@ -204,7 +207,7 @@ src/maas_tokenizer/api.py
 - `registry.py`：严格解析十三个固定 profile，不做未知模型回退；
 - `assets.py`：加载前检查所需本地资产；
 - `protocol.py`：OpenAI 风格请求结构；
-- `renderers.py`：按 profile 分派 HF、DeepSeek V3.2、DeepSeek V4 或 Kimi K3 路径；
+- `renderers.py`：按 profile 分派 HF、DeepSeek V3.2/V4/V4.1 或 Kimi K3 路径；
 - `vendor/vllm/extracted/`：从固定 vLLM 路径提取的必要文本处理代码；
 - `model_assets/`：每个模型各自的 tokenizer/template/config；
 - `tests/`：API、缓存、模型渲染、特殊路径和打包边界测试。
