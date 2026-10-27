@@ -188,7 +188,7 @@ def test_malformed_json_uses_fastapi_422(client) -> None:
     assert fields[7] == "invalid request body"
 
 
-def test_conflicting_thinking_options_return_request_processing_error(client) -> None:
+def test_client_template_kwargs_do_not_override_top_level_thinking(client) -> None:
     app.dependency_overrides[get_token_count_service] = lambda: TokenCountService()
 
     response = client[0].post(
@@ -201,11 +201,22 @@ def test_conflicting_thinking_options_return_request_processing_error(client) ->
         },
     )
 
-    assert response.status_code == 400
-    assert response.json() == {
-        "error_code": "request_processing_error",
-        "error_msg": "conflicting thinking options",
-    }
+    assert response.status_code == 200
+    assert isinstance(response.json()["prompt_tokens"], int)
+
+
+def test_conflicting_top_level_thinking_options_do_not_fail(client) -> None:
+    app.dependency_overrides[get_token_count_service] = lambda: TokenCountService()
+    response = client[0].post(
+        "/tokenizer",
+        json={
+            "model": "glm-5.2",
+            "messages": [{"role": "user", "content": "hello"}],
+            "thinking": {"type": "disabled"},
+            "enable_thinking": True,
+        },
+    )
+    assert response.status_code == 200
 
 
 def test_object_thinking_is_accepted_by_endpoint(client) -> None:

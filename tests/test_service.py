@@ -52,22 +52,40 @@ def test_media_for_unsupported_model_is_skipped() -> None:
     assert with_media == text_only
 
 
-def test_top_level_thinking_matches_vllm_template_kwargs() -> None:
+def test_client_template_kwargs_cannot_change_thinking() -> None:
     service = TokenCountService(assets_root=Path("model_assets"))
     messages = [{"role": "user", "content": "请分析这个问题"}]
 
-    from_xds = service.count(
-        {"model": "glm-5.2", "messages": messages, "thinking": False}
-    )
-    from_vllm = service.count(
+    plain = service.count({"model": "glm-5.2", "messages": messages})
+    with_kwargs = service.count(
         {
             "model": "glm-5.2",
             "messages": messages,
             "chat_template_kwargs": {"enable_thinking": False},
         }
     )
+    assert with_kwargs == plain
+    assert service.count(
+        {"model": "glm-5.2", "messages": messages, "thinking": False}
+    ) != plain
 
-    assert from_xds == from_vllm
+
+def test_invalid_client_template_kwargs_and_unknown_thinking_type_are_not_rejected() -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {"model": "glm-5.2", "messages": [{"role": "user", "content": "hello"}]}
+    assert service.count({
+        **request,
+        "thinking": {"type": "unrecognized"},
+        "chat_template_kwargs": "ignored",
+    }) == service.count(request)
+
+
+def test_unrecognized_effort_reaches_the_glm_template_without_local_rejection() -> None:
+    service = TokenCountService(assets_root=Path("model_assets"))
+    request = {"model": "glm-5.2", "messages": [{"role": "user", "content": "hello"}]}
+    assert service.count({**request, "reasoning_effort": "unrecognized"}) == (
+        service.count(request)
+    )
 
 
 def test_template_kwargs_include_thinking_auxiliary_fields() -> None:
@@ -143,7 +161,7 @@ def test_glm52_preserves_explicit_clear_thinking(
     assert captured["clear_thinking"] is clear_thinking
 
 
-def test_glm52_preserves_explicit_template_clear_thinking(
+def test_glm52_ignores_client_template_clear_thinking(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -164,7 +182,7 @@ def test_glm52_preserves_explicit_template_clear_thinking(
         }
     )
 
-    assert captured["clear_thinking"] is True
+    assert captured["clear_thinking"] is False
 
 
 def test_glm52_preserves_explicit_thinking_clear_thinking(
@@ -189,6 +207,25 @@ def test_glm52_preserves_explicit_thinking_clear_thinking(
     )
 
     assert captured["clear_thinking"] is True
+
+
+def test_glm52_null_nested_clear_thinking_uses_model_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CapturingRenderer:
+        def encode(self, parsed: ChatCompletionRequest) -> list[int]:
+            captured.update(parsed.template_kwargs(parsed.tools))
+            return [1]
+
+    service = TokenCountService(assets_root=Path("model_assets"))
+    monkeypatch.setattr(service, "_renderer_for", lambda _profile: CapturingRenderer())
+    service.count({
+        "model": "glm-5.2", "messages": [{"role": "user", "content": "hello"}],
+        "thinking": {"type": "auto", "clear_thinking": None},
+    })
+    assert captured["clear_thinking"] is False
 
 
 def test_other_models_do_not_get_glm52_clear_thinking_default(

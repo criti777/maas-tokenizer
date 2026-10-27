@@ -10,8 +10,7 @@ from maas_tokenizer.request_compat import normalize_compatibility_fields
     "source",
     [
         {"thinking": True},
-        {"chat_template_kwargs": {"thinking": True}},
-        {"chat_template_kwargs": {"enable_thinking": True}},
+        {"enable_thinking": True},
         {"reasoning_effort": "high"},
     ],
 )
@@ -22,18 +21,12 @@ def test_thinking_source_fills_compatibility_union(source: dict) -> None:
         "chat_template_kwargs": {"custom": "kept"},
     }
     request.update(source)
-    if "chat_template_kwargs" in source:
-        request["chat_template_kwargs"] = {
-            "custom": "kept",
-            **source["chat_template_kwargs"],
-        }
     original = deepcopy(request)
 
     normalized = normalize_compatibility_fields(request)
 
     assert normalized["thinking"] is True
     assert normalized["chat_template_kwargs"] == {
-        "custom": "kept",
         "thinking": True,
         "enable_thinking": True,
     }
@@ -79,10 +72,8 @@ def test_request_without_compatibility_fields_is_only_copied() -> None:
             "chat_template_kwargs": {"thinking": False},
         },
         {
-            "chat_template_kwargs": {
-                "thinking": True,
-                "enable_thinking": False,
-            },
+            "thinking": True,
+            "enable_thinking": False,
         },
         {
             "thinking": True,
@@ -94,45 +85,41 @@ def test_request_without_compatibility_fields_is_only_copied() -> None:
         },
     ],
 )
-def test_conflicting_thinking_options_are_rejected(payload: dict) -> None:
+def test_conflicting_thinking_options_follow_top_level_priority(payload: dict) -> None:
     payload.update({"model": "glm-5.2", "messages": []})
-
-    with pytest.raises(RequestProcessingError, match="conflicting thinking options"):
-        normalize_compatibility_fields(payload)
+    normalized = normalize_compatibility_fields(payload)
+    assert normalized["thinking"] is True
+    assert normalized["chat_template_kwargs"]["enable_thinking"] is True
+    if payload.get("reasoning_effort") == "none":
+        assert normalized["reasoning_effort"] is None
 
 
 @pytest.mark.parametrize(
     ("payload", "field"),
     [
         ({"thinking": 1}, "thinking"),
-        ({"chat_template_kwargs": {"thinking": "true"}}, "thinking"),
-        (
-            {"chat_template_kwargs": {"enable_thinking": None}},
-            "enable_thinking",
-        ),
+        ({"enable_thinking": "false"}, "enable_thinking"),
     ],
 )
-def test_non_boolean_thinking_options_are_rejected(
+def test_non_boolean_thinking_options_use_the_model_default(
     payload: dict, field: str
 ) -> None:
     payload.update({"model": "glm-5.2", "messages": []})
+    normalized = normalize_compatibility_fields(payload)
+    assert normalized[field] == payload[field]
+    assert "chat_template_kwargs" not in normalized
 
-    with pytest.raises(RequestProcessingError, match=field):
-        normalize_compatibility_fields(payload)
 
-
-def test_non_object_chat_template_kwargs_are_rejected_when_normalizing() -> None:
-    with pytest.raises(
-        RequestProcessingError, match="chat_template_kwargs must be an object"
-    ):
-        normalize_compatibility_fields(
-            {
-                "model": "glm-5.2",
-                "messages": [],
-                "thinking": True,
-                "chat_template_kwargs": "invalid",
-            }
-        )
+def test_client_chat_template_kwargs_are_ignored_even_if_not_an_object() -> None:
+    normalized = normalize_compatibility_fields(
+        {
+            "model": "glm-5.2", "messages": [], "thinking": True,
+            "chat_template_kwargs": "invalid",
+        }
+    )
+    assert normalized["chat_template_kwargs"] == {
+        "thinking": True, "enable_thinking": True,
+    }
 
 
 @pytest.mark.parametrize(
@@ -203,6 +190,14 @@ def test_object_clear_thinking_is_copied_to_top_level() -> None:
     assert thinking == {"type": "enabled", "clear_thinking": True}
 
 
+def test_nested_clear_thinking_is_not_locally_validated() -> None:
+    normalized = normalize_compatibility_fields(
+        {"thinking": {"type": "auto", "clear_thinking": "vendor decides"}}
+    )
+    assert normalized["clear_thinking"] == "vendor decides"
+    assert "chat_template_kwargs" not in normalized
+
+
 def test_glm_minimal_effort_policy_forces_thinking_disabled() -> None:
     normalized = normalize_compatibility_fields(
         {
@@ -219,49 +214,32 @@ def test_glm_minimal_effort_policy_forces_thinking_disabled() -> None:
 
 
 @pytest.mark.parametrize(
-    ("payload", "message"),
+    "payload",
     [
-        ({"thinking": "enabled"}, "thinking must be a boolean, object, or null"),
-        ({"thinking": []}, "thinking must be a boolean, object, or null"),
-        (
-            {"thinking": {"type": None}},
-            "thinking.type must be enabled, disabled, or auto",
-        ),
-        (
-            {"thinking": {"type": []}},
-            "thinking.type must be enabled, disabled, or auto",
-        ),
-        (
-            {"thinking": {"type": "unknown"}},
-            "thinking.type must be enabled, disabled, or auto",
-        ),
-        (
-            {"thinking": {"clear_thinking": "true"}},
-            "thinking.clear_thinking must be a boolean",
-        ),
-        ({"enable_thinking": "true"}, "enable_thinking must be a boolean"),
-        ({"preserve_thinking": 1}, "preserve_thinking must be a boolean"),
+        {"thinking": "enabled"},
+        {"thinking": []},
+        {"thinking": {"type": None}},
+        {"thinking": {"type": []}},
+        {"thinking": {"type": "unknown"}},
+        {"enable_thinking": "true"},
+        {"preserve_thinking": 1},
+        {"reasoning_effort": ["high"]},
     ],
 )
-def test_invalid_extended_thinking_values_are_rejected(
-    payload: dict, message: str
-) -> None:
+def test_unrecognized_thinking_values_do_not_fail_preprocessing(payload: dict) -> None:
     payload.update({"model": "glm-5.2", "messages": []})
+    normalized = normalize_compatibility_fields(payload)
+    assert "chat_template_kwargs" not in normalized
 
-    with pytest.raises(RequestProcessingError, match=message):
-        normalize_compatibility_fields(payload)
 
-
-def test_object_and_legacy_thinking_conflict_is_rejected() -> None:
-    with pytest.raises(RequestProcessingError, match="conflicting thinking options"):
-        normalize_compatibility_fields(
-            {
-                "model": "glm-5.2",
-                "messages": [],
-                "thinking": {"type": "disabled"},
-                "enable_thinking": True,
-            }
-        )
+def test_object_thinking_wins_over_legacy_switch() -> None:
+    normalized = normalize_compatibility_fields(
+        {
+            "model": "glm-5.2", "messages": [],
+            "thinking": {"type": "disabled"}, "enable_thinking": True,
+        }
+    )
+    assert normalized["chat_template_kwargs"]["enable_thinking"] is False
 
 
 def test_prefix_fills_top_level_continuation_fields() -> None:

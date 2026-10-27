@@ -18,13 +18,11 @@ from vendor.vllm.extracted.deepseek_v41_encoding import encode_messages as encod
 from vendor.vllm.extracted.hf_renderer import render_chat
 
 from .encoders import GigaTokenEncoder, TokenEncoder, TokenIds
-from .errors import RequestProcessingError
 from .registry import ModelProfile
 
 
 _REMOTE_CODE_LOCK = Lock()
 _REMOTE_MODULE_CACHE = TemporaryDirectory(prefix="maas-tokenizer-")
-_K3_THINKING_EFFORTS = {"low", "high", "max"}
 
 
 @dataclass(frozen=True)
@@ -254,11 +252,7 @@ class KimiK3Renderer:
         elif reasoning_effort is not None:
             kwargs.setdefault("thinking_effort", reasoning_effort)
 
-        thinking_effort = kwargs.setdefault("thinking_effort", "max")
-        if thinking_effort not in _K3_THINKING_EFFORTS:
-            raise RequestProcessingError(
-                "Kimi K3 thinking_effort must be one of low, high, max"
-            )
+        kwargs.setdefault("thinking_effort", "max")
         thinking = kwargs.pop("thinking", True)
         segments = self._build_chat_segments(
             parsed.messages,
