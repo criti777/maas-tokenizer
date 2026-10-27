@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from transformers import AutoTokenizer
 
 from maas_tokenizer.assets import verify_asset_directory
 from maas_tokenizer.encoders import GigaTokenEncoder
@@ -76,7 +77,12 @@ def test_native_gigatoken_matches_hf_for_rendered_prompt(
     )
 
     rendered = renderer.render(parsed)
-    expected = renderer.template_tokenizer.encode(
+    oracle_tokenizer = (
+        AutoTokenizer.from_pretrained(asset_path, local_files_only=True)
+        if profile.renderer.startswith("deepseek_")
+        else renderer.template_tokenizer
+    )
+    expected = oracle_tokenizer.encode(
         rendered.text,
         add_special_tokens=rendered.add_special_tokens,
     )

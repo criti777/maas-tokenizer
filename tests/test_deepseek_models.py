@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
+from transformers import AutoTokenizer
 
 from maas_tokenizer.assets import verify_asset_directory
 from maas_tokenizer.protocol import ChatCompletionRequest
@@ -10,6 +11,7 @@ from maas_tokenizer.registry import ModelRegistry
 from maas_tokenizer.request_compat import normalize_compatibility_fields
 from maas_tokenizer.renderers import build_renderer
 from maas_tokenizer.service import TokenCountService
+import maas_tokenizer.renderers as renderers_module
 
 
 V4_PROFILES = [
@@ -19,6 +21,25 @@ V4_PROFILES = [
 OFFICIAL_CASES = json.loads(
     Path("tests/fixtures/deepseek_v4_official.json").read_text(encoding="utf-8")
 )["cases"]
+
+
+@pytest.mark.parametrize(
+    "profile_id",
+    ["deepseek-v3.2", "deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4.1-flash"],
+)
+def test_specialized_renderer_does_not_load_unused_hf_tokenizer(
+    profile_id: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unexpected_load(*args, **kwargs):
+        pytest.fail("specialized renderer must not load an unused HF tokenizer")
+
+    monkeypatch.setattr(renderers_module.AutoTokenizer, "from_pretrained", unexpected_load)
+    profile = ModelRegistry.from_file(Path("models/profiles.json")).resolve(profile_id)
+    encoder = object()
+
+    renderer = build_renderer(profile, Path("unused"), encoder=encoder)
+
+    assert renderer.encoder is encoder
 
 
 @pytest.fixture(scope="module")
@@ -31,14 +52,16 @@ def v4_runtime(request):
     profile_id = request.param
     profile = ModelRegistry.from_file(Path("models/profiles.json")).resolve(profile_id)
     assets = verify_asset_directory(profile, Path("model_assets"))
-    return profile_id, build_renderer(profile, assets)
+    return profile_id, build_renderer(profile, assets), AutoTokenizer.from_pretrained(
+        assets, local_files_only=True
+    )
 
 
 @pytest.mark.parametrize("case", OFFICIAL_CASES, ids=lambda case: case["name"])
 def test_v4_matches_independent_official_prompt_and_token_goldens(
     v4_runtime, service: TokenCountService, case: dict,
 ) -> None:
-    profile_id, renderer = v4_runtime
+    profile_id, renderer, oracle_tokenizer = v4_runtime
     request = {"model": profile_id, **case["request"]}
     parsed = ChatCompletionRequest.model_validate(normalize_compatibility_fields(request))
     rendered = renderer.render(parsed)
@@ -46,7 +69,7 @@ def test_v4_matches_independent_official_prompt_and_token_goldens(
     # Goldens were generated with unmodified official code, not our renderer.
     assert hashlib.sha256(rendered.text.encode()).hexdigest() == case["prompt_sha256"]
     assert service.count(request) == case["prompt_tokens"]
-    assert list(renderer.encode(parsed)) == renderer.template_tokenizer.encode(
+    assert list(renderer.encode(parsed)) == oracle_tokenizer.encode(
         rendered.text, add_special_tokens=False
     )
 
