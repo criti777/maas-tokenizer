@@ -21,6 +21,10 @@ V4_PROFILES = [
 OFFICIAL_CASES = json.loads(
     Path("tests/fixtures/deepseek_v4_official.json").read_text(encoding="utf-8")
 )["cases"]
+SUPPORTED_OFFICIAL_CASES = [
+    case for case in OFFICIAL_CASES
+    if "chat_template_kwargs" not in case["request"]
+]
 
 
 @pytest.mark.parametrize(
@@ -57,7 +61,7 @@ def v4_runtime(request):
     )
 
 
-@pytest.mark.parametrize("case", OFFICIAL_CASES, ids=lambda case: case["name"])
+@pytest.mark.parametrize("case", SUPPORTED_OFFICIAL_CASES, ids=lambda case: case["name"])
 def test_v4_matches_independent_official_prompt_and_token_goldens(
     v4_runtime, service: TokenCountService, case: dict,
 ) -> None:
@@ -71,6 +75,32 @@ def test_v4_matches_independent_official_prompt_and_token_goldens(
     assert service.count(request) == case["prompt_tokens"]
     assert list(renderer.encode(parsed)) == oracle_tokenizer.encode(
         rendered.text, add_special_tokens=False
+    )
+
+
+@pytest.mark.parametrize("profile", V4_PROFILES)
+def test_v4_ignores_client_drop_thinking_kwarg(
+    service: TokenCountService, profile: str,
+) -> None:
+    default_case = next(case for case in OFFICIAL_CASES if case["name"] == "history_drop_True")
+    plain = {"model": profile, **default_case["request"]}
+    plain.pop("chat_template_kwargs")
+    with_kwarg = {**plain, "chat_template_kwargs": {"drop_thinking": False}}
+
+    assert service.count(plain) == default_case["prompt_tokens"]
+    assert service.count(with_kwarg) == service.count(plain)
+
+
+@pytest.mark.parametrize("profile", V4_PROFILES)
+def test_v4_top_level_thinking_wins_over_conflicting_effort(
+    service: TokenCountService, profile: str,
+) -> None:
+    request = {"model": profile, "messages": [{"role": "user", "content": "think"}]}
+    assert service.count({**request, "thinking": True, "reasoning_effort": "none"}) == (
+        service.count({**request, "thinking": True})
+    )
+    assert service.count({**request, "thinking": False, "reasoning_effort": "high"}) == (
+        service.count({**request, "thinking": False})
     )
 
 

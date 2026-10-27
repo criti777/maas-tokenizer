@@ -4,10 +4,10 @@ from typing import Any
 import pytest
 
 from maas_tokenizer.assets import verify_asset_directory
-from maas_tokenizer.errors import RequestProcessingError
 from maas_tokenizer.protocol import ChatCompletionRequest
 from maas_tokenizer.registry import ModelRegistry
 from maas_tokenizer.renderers import build_renderer
+from maas_tokenizer.request_compat import normalize_compatibility_fields
 from maas_tokenizer.service import TokenCountService
 
 
@@ -16,7 +16,9 @@ def _renderer_and_request(payload: dict[str, Any]) -> tuple[Any, Any]:
     profile = registry.resolve("kimi-k3")
     asset_path = verify_asset_directory(profile, Path("model_assets"))
     renderer = build_renderer(profile, asset_path)
-    parsed = ChatCompletionRequest.model_validate({"model": "kimi-k3", **payload})
+    parsed = ChatCompletionRequest.model_validate(
+        normalize_compatibility_fields({"model": "kimi-k3", **payload})
+    )
     return renderer, parsed
 
 
@@ -59,7 +61,7 @@ def test_kimi_k3_matches_official_ids_for_thinking(thinking: bool) -> None:
     renderer, parsed = _renderer_and_request(
         {
             "messages": [{"role": "user", "content": "分析并回答"}],
-            "chat_template_kwargs": {"thinking": thinking},
+            "thinking": thinking,
         }
     )
 
@@ -162,12 +164,12 @@ def test_kimi_k3_object_thinking_matches_boolean_form(enabled: bool) -> None:
 
 
 @pytest.mark.model("kimi-k3")
-def test_kimi_k3_rejects_unsupported_reasoning_effort_as_request_error() -> None:
+def test_kimi_k3_official_encoder_rejects_unsupported_reasoning_effort() -> None:
     service = TokenCountService(assets_root=Path("model_assets"))
 
     with pytest.raises(
-        RequestProcessingError,
-        match="Kimi K3 thinking_effort must be one of low, high, max",
+        ValueError,
+        match="Unsupported thinking_effort='medium'",
     ):
         service.count(
             {

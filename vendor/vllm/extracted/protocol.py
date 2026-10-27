@@ -16,11 +16,9 @@ class ChatCompletionRequest(BaseModel):
     model: str | None = None
     tools: list[dict[str, Any]] | None = None
     tool_choice: Any = "none"
-    reasoning_effort: Literal[
-        "none", "minimal", "low", "medium", "high", "xhigh", "max"
-    ] | None = None
-    clear_thinking: bool | None = None
-    preserve_thinking: bool | None = None
+    reasoning_effort: Any = None
+    clear_thinking: Any = None
+    preserve_thinking: Any = None
     add_generation_prompt: bool = True
     continue_final_message: bool = False
     add_special_tokens: bool = False
@@ -55,6 +53,4 @@ class ChatCompletionRequest(BaseModel):
         for key, value in defaults.items():
             if key not in kwargs and value is not None:
                 kwargs[key] = value
-        if self.reasoning_effort is not None and "enable_thinking" not in kwargs:
-            kwargs["enable_thinking"] = self.reasoning_effort != "none"
         return kwargs

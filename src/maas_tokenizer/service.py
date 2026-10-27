@@ -94,26 +94,9 @@ def _strip_multimodal_messages(messages: Any) -> Any:
 def _apply_chat_template_defaults(
     request: dict[str, Any], defaults: Mapping[str, Any]
 ) -> None:
-    if not defaults:
-        return
-
-    raw_kwargs = request.get("chat_template_kwargs")
-    if raw_kwargs is None:
-        template_kwargs: dict[str, Any] = {}
-    elif isinstance(raw_kwargs, Mapping):
-        template_kwargs = dict(raw_kwargs)
-    else:
-        raise RequestProcessingError("chat_template_kwargs must be an object")
-
-    changed = False
     for key, value in defaults.items():
-        if key in request or key in template_kwargs:
-            continue
-        template_kwargs[key] = value
-        changed = True
-
-    if changed:
-        request["chat_template_kwargs"] = template_kwargs
+        if request.get(key) is None:
+            request[key] = value
 
 
 class TokenCountService:
