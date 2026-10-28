@@ -465,12 +465,12 @@ def render_reasoning_effort(
     if effort is None:
         effort = DEFAULT_REASONING_EFFORT
     assert (
-        type(effort) is int and 1 <= effort <= 100
+        isinstance(effort, int) and not isinstance(effort, bool) and 1 <= effort <= 100
     ) or effort in REASONING_EFFORT_MAPPINGS, (
         "Invalid reasoning effort for deepseek_v41: "
         f"{effort}, should be int within [1,100] or {list(REASONING_EFFORT_MAPPINGS)}"
     )
-    if type(effort) is str:
+    if isinstance(effort, str):
         effort = REASONING_EFFORT_MAPPINGS[effort]
     if index == 0 and thinking_mode == "thinking":
         return REASONING_EFFORT_TEMPLATE.format(budget=effort)
