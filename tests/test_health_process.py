@@ -61,7 +61,7 @@ uvicorn.Server(uvicorn.Config(api.app, log_level='warning', access_log=False)).r
                     with urllib.request.urlopen(url, timeout=0.5) as response:
                         assert response.status == 200
                     break
-                except (OSError, urllib.error.URLError):
+                except OSError:
                     if time.monotonic() > deadline:
                         raise AssertionError("server did not become healthy")
                     time.sleep(0.05)
