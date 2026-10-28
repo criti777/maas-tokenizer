@@ -105,14 +105,13 @@ def _split_tool_name(name: str, namespace: Optional[str] = None) -> Tuple[Option
     """Split a qualified name and validate any explicit namespace."""
     prefix, separator, bare_name = name.partition("::")
     if separator:
-        assert namespace in (None, prefix), (
-            f"Conflicting tool namespaces: {namespace} != {prefix}"
-        )
+        if namespace not in (None, prefix):
+            raise ValueError(f"Conflicting tool namespaces: {namespace} != {prefix}")
         namespace, name = prefix, bare_name
-    assert "::" not in name, f"Tool name must not contain '::': {name}"
-    assert namespace is None or "::" not in namespace, (
-        f"Tool namespace must not contain '::': {namespace}"
-    )
+    if "::" in name:
+        raise ValueError(f"Tool name must not contain '::': {name}")
+    if namespace is not None and "::" in namespace:
+        raise ValueError(f"Tool namespace must not contain '::': {namespace}")
     return namespace, name
 
 
@@ -464,12 +463,15 @@ def render_reasoning_effort(
     """Render the V4.1 numeric reasoning effort prefix (thinking mode, index 0 only)."""
     if effort is None:
         effort = DEFAULT_REASONING_EFFORT
-    assert (
+    valid_budget = (
         isinstance(effort, int) and not isinstance(effort, bool) and 1 <= effort <= 100
-    ) or effort in REASONING_EFFORT_MAPPINGS, (
-        "Invalid reasoning effort for deepseek_v41: "
-        f"{effort}, should be int within [1,100] or {list(REASONING_EFFORT_MAPPINGS)}"
     )
+    valid_name = isinstance(effort, str) and effort in REASONING_EFFORT_MAPPINGS
+    if not (valid_budget or valid_name):
+        raise ValueError(
+            "Invalid reasoning effort for deepseek_v41: "
+            f"{effort}, should be int within [1,100] or {list(REASONING_EFFORT_MAPPINGS)}"
+        )
     if isinstance(effort, str):
         effort = REASONING_EFFORT_MAPPINGS[effort]
     if index == 0 and thinking_mode == "thinking":
@@ -595,8 +597,10 @@ def render_message(
     """
     Render a single message at the given index into its V4.1 encoded string form.
     """
-    assert 0 <= index < len(messages)
-    assert thinking_mode in ["chat", "thinking"], f"Invalid thinking_mode `{thinking_mode}`"
+    if not 0 <= index < len(messages):
+        raise IndexError(f"Message index out of range: {index}")
+    if thinking_mode not in ("chat", "thinking"):
+        raise ValueError(f"Invalid thinking_mode `{thinking_mode}`")
 
     msg = messages[index]
     last_user_idx = find_last_user_index(messages)
@@ -719,7 +723,8 @@ def render_message(
     task = messages[index].get("task")
     if task is not None:
         # Task special token for internal classification tasks
-        assert task in VALID_TASKS, f"Invalid task: '{task}'. Valid tasks are: {list(VALID_TASKS)}"
+        if task not in VALID_TASKS:
+            raise ValueError(f"Invalid task: '{task}'. Valid tasks are: {list(VALID_TASKS)}")
         task_sp_token = DS_TASK_SP_TOKENS[task]
 
         if task != "action":
@@ -964,26 +969,30 @@ def parse_message_from_completion_text(text: str, thinking_mode: str) -> Dict[st
     if is_thinking:
         index, content_delta, stop_token = _read_until_stop(index, text, [thinking_end_token, tool_calls_start_token])
         reasoning_content = content_delta
-        assert stop_token == thinking_end_token, "Invalid thinking format: missing </think>"
+        if stop_token != thinking_end_token:
+            raise ValueError("Invalid thinking format: missing </think>")
 
     index, content_delta, stop_token = _read_until_stop(index, text, [eos_token, tool_calls_start_token])
     summary_content = content_delta
     if stop_token == tool_calls_start_token:
         is_tool_calling = True
     else:
-        assert stop_token == eos_token, "Invalid format: missing EOS token"
+        if stop_token != eos_token:
+            raise ValueError("Invalid format: missing EOS token")
 
     if is_tool_calling:
         index, stop_token, tool_calls = parse_tool_calls(index, text)
 
         index, tool_ends_text, stop_token = _read_until_stop(index, text, [eos_token])
-        assert not tool_ends_text, "Unexpected content after tool calls"
+        if tool_ends_text:
+            raise ValueError("Unexpected content after tool calls")
 
-    assert len(text) == index and stop_token in [eos_token, None], "Unexpected content at end"
+    if len(text) != index or stop_token not in (eos_token, None):
+        raise ValueError("Unexpected content at end")
 
     for sp_token in [bos_token, eos_token, thinking_start_token, thinking_end_token, dsml_token]:
-        assert sp_token not in summary_content and sp_token not in reasoning_content, \
-            f"Unexpected special token '{sp_token}' in content"
+        if sp_token in summary_content or sp_token in reasoning_content:
+            raise ValueError(f"Unexpected special token '{sp_token}' in content")
 
     return {
         "role": "assistant",
