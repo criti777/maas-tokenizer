@@ -226,4 +226,4 @@ src/maas_tokenizer/api.py
 
 本项目只计算多模态 processor 之前的文本 token 数。它不包含数据集生成、JSONL 批处理、结果哈希、模型权重、图片下载/解码、pixel values、视觉 embedding 或模型推理。
 
-第三方代码与资产来源见 `THIRD_PARTY_NOTICES.md`；vendored 源文件保留原有 SPDX 声明。
+Vendored 源文件保留原有 SPDX 声明。
